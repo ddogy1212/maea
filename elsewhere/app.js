@@ -226,7 +226,8 @@
     ctx.textAlign=opts.align || 'left';
     ctx.fillStyle=color;
     if (opts.shadow) {ctx.shadowColor='#0006';ctx.shadowBlur=18;ctx.shadowOffsetY=3;}
-    ctx.fillText(str,x,y,opts.maxWidth || undefined);
+    if (Number.isFinite(opts.maxWidth) && opts.maxWidth > 0) ctx.fillText(str,x,y,opts.maxWidth);
+    else ctx.fillText(str,x,y);
     ctx.restore();
   }
   function horizontalRule(ctx,x,y,width,color='#d7cabe',stroke=1) {
