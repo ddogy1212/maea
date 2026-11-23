@@ -164,6 +164,7 @@
     if (initial) {
       el('photoA').style.backgroundImage = 'url("' + photoUrl(scene) + '")';
       el('photoA').classList.add('visible');
+      el('photoB').classList.remove('visible');
       activePhoto = 'a';
     } else {
       const incoming = activePhoto === 'a' ? el('photoB') : el('photoA');
@@ -517,10 +518,13 @@
       const filter = ctx.createBiquadFilter();
       const amp = ctx.createGain();
       const master = ctx.createGain();
+      master.gain.value = 0;
+      amp.gain.value = 0.65;
       source.connect(filter); filter.connect(amp); amp.connect(master); master.connect(ctx.destination);
       source.start();
       const lfo = ctx.createOscillator();
       const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 0;
       lfo.type = 'sine';
       lfo.connect(lfoGain);
       lfoGain.connect(amp.gain);
