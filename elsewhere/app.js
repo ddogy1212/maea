@@ -504,7 +504,7 @@
         }
       }
     });
-    window.addEventListener('pagehide',()=>{for(const item of stored)clearItem(item);});
+    // Retain object URLs for back-forward cache restoration.
   }
 
   function init() {
