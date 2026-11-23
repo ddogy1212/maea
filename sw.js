@@ -14,7 +14,7 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   // Leave companion subapps to their own scoped workers; avoid caching a sibling page as MAEA's home.
-  if (['elsewhere','ahead'].some(name => url.href.startsWith(new URL('./' + name + '/', self.registration.scope).href))) return;
+  if (['elsewhere','ahead','kin'].some(name => url.href.startsWith(new URL('./' + name + '/', self.registration.scope).href))) return;
   if (url.origin === self.location.origin) {
     if (event.request.mode === 'navigate') {
       event.respondWith(fetch(event.request).then(response => {
