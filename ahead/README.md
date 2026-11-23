@@ -41,7 +41,7 @@ Date extraction is **rules-based**, not natural-language AI. The preview indicat
 
 ICS events are generated for tasks with due dates; timed events represent a 15-minute **deadline marker**, not the estimated task duration. They use floating local times; import into the calendar in your local timezone.
 
-Up to 500 tasks are kept locally. Import supports AHEAD-exported JSON backups (up to 3 MB); entries with existing IDs are not added twice. Focus session history is included in backup but not automatically restored during a task-only import. If you need a complete move across devices, the app can be extended to offer explicit session import as well.
+Up to 500 tasks are kept locally. Import supports AHEAD-exported JSON backups (up to 3 MB); entries with existing IDs are not added twice. The JSON backup contains task history, completed focus sessions, and the preferred focus duration. Restoring it merges unseen task IDs and session IDs into the current device and restores the focus duration unless a timer is actively running.
 
 ## Running locally
 
