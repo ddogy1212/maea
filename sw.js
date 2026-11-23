@@ -21,10 +21,10 @@ self.addEventListener('fetch', event => {
         return response;
       }).catch(() => caches.match('./index.html')));
     } else {
-      event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+      event.respondWith(fetch(event.request).then(response => {
         if (response.ok) caches.open(VERSION).then(c => c.put(event.request, response.clone()));
         return response;
-      })));
+      }).catch(() => caches.match(event.request)));
     }
   } else if (url.hostname === 'images.unsplash.com') {
     event.respondWith(caches.open(IMAGE_CACHE).then(async cache => {
