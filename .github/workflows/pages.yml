@@ -28,6 +28,9 @@ jobs:
         run: |
           node --check app.js
           node --check sw.js
+          node --check elsewhere/app.js
+          node --check elsewhere/sw.js
+          node elsewhere/smoke.test.cjs
           test -f index.html
           test -f styles.css
           test -f manifest.webmanifest
