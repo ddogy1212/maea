@@ -58,3 +58,10 @@ The original **MAEA focus environment** remains at the repository root. Older ve
 **[AHEAD](./ahead/)** is a separate, practical task and deadline dashboard built in response to feedback that the previous creative apps weren't productive enough. Paste one or many lines of work, review detected Korean dates and times, sort today's and future deadlines, mark tasks complete, run a task-linked focus timer, and export either a complete JSON backup or an iCalendar (ICS) deadline list. Designed to be understandable in seconds, not a multi-step editor.
 
 AHEAD works without a backend or account and stores its data in the current browser; export a backup before switching devices. The existing MAEA and ELSEWHERE apps remain unchanged. If GitHub Pages has been successfully enabled and published, the intended app URL is `https://ddogy1212.github.io/maea/ahead/`.
+
+
+## KIN — NFC identity and tag studio
+
+**[KIN](./kin/)** is a mobile-first digital business-card and NFC tag maker. Create a personal contact card, share it as a serverless profile link or QR, save a VCF contact file, or—in supported Android Chrome over HTTPS—write and scan compatible NFC tags. KIN estimates low-memory tag capacity and can make a compact card link for smaller tags. Your contact draft stays in this browser until you choose to share or write it, and public links should contain only information you're willing to disclose.
+
+MAEA, ELSEWHERE and AHEAD remain as separate apps. When GitHub Pages has been successfully deployed, KIN's intended URL is `https://ddogy1212.github.io/maea/kin/`.
