@@ -1,0 +1,25 @@
+{
+  "name": "KIN — Near-field Identity Studio",
+  "short_name": "KIN",
+  "description": "디지털 명함을 만들고 QR로 공유하고 지원되는 Android Chrome에서 NFC에 직접 기록하는 도구",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f1ed",
+  "theme_color": "#f2f1ed",
+  "lang": "ko",
+  "categories": [
+    "productivity",
+    "utilities",
+    "business"
+  ],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
