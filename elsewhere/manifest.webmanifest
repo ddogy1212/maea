@@ -1,25 +1,25 @@
 {
-  "name": "ELSEWHERE — The Postcard Atelier",
-  "short_name": "ELSEWHERE",
-  "description": "기억하고 싶은 순간을 디지털 엽서로 만드는 아틀리에",
+  "name": "PRESS. — Image Workshop",
+  "short_name": "PRESS.",
+  "description": "사진을 브라우저에서 바로 압축·변환하고 여러 장을 ZIP으로 저장하는 도구.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f2ec",
-  "theme_color": "#f5f2ec",
+  "background_color": "#f5f4ee",
+  "theme_color": "#f5f4ee",
   "lang": "ko",
   "icons": [
     {
       "src": "./icon.svg",
-      "type": "image/svg+xml",
       "sizes": "any",
-      "purpose": "any maskable"
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "categories": [
-    "photography",
-    "lifestyle",
-    "creative"
+    "utilities",
+    "productivity",
+    "photography"
   ]
 }
