@@ -71,7 +71,7 @@
     toastTimer=setTimeout(()=>el.classList.remove('shown'),3500);
   }
   function isMobile(){return window.matchMedia('(max-width:700px)').matches;}
-  function changed() {state.archiveId=null;}
+  function changed() {state.archiveId=null;renderRevision++;}
 
   function setGallery() {
     $('sceneGallery').innerHTML=scenes.map((scene,index) =>
@@ -335,6 +335,7 @@
   }
 
   async function chooseScene(id) {
+    uploadRevision++;
     const scene=scenes.find(x=>x.id===id);
     if(!scene)return;
     const previous=state.source;
@@ -568,6 +569,7 @@
     if(formerFocus?.focus)formerFocus.focus({preventScroll:true});
   }
   async function restoreCard(card) {
+    uploadRevision++;
     if(!card?.imageBlob){toast('이 엽서를 불러올 수 없어요.');return;}
     const url=URL.createObjectURL(card.imageBlob);
     const next={kind:'stored',id:null,url,blob:card.imageBlob};
