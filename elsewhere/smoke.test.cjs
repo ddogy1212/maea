@@ -117,6 +117,7 @@ async function run(){
   const instrumentation=js.replace(/\n  init\(\);\n\}\)\(\);\s*$/,
     '\n  init();globalThis.__TEST__={state,render,readPhoto,changeMood,changeSuggestion,nextStyle,paint,saveArchive,restoreCard,readArchive,archiveCards:()=>archiveCards,requestDelete,deleteCard,download,share};\n})();');
   assert.notEqual(instrumentation,js,'test hook inserted');
+  windowMock.indexedDB=indexedDBMock;
   const sandbox={
     document:documentMock,window:windowMock,Image:ImageMock,URL:urlMock,
     navigator:{},location:{protocol:'file:',hostname:''},indexedDB:indexedDBMock,
