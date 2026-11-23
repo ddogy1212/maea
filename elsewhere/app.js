@@ -1,774 +1,517 @@
-/* ELSEWHERE — Postcard Atelier | Vanilla JS / IndexedDB / Canvas */
+/* PRESS. / Fast, local image compression and batch conversion. No backend. */
 (() => {
   'use strict';
-  const $ = s => document.querySelector(s);
-  const $$ = s => [...document.querySelectorAll(s)];
-  const byId = id => document.getElementById(id);
-  const escapes = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  })[ch]);
-  const localDay = () => {
-    const now = new Date();
-    return [now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
-  };
-  const uid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2));
-  const imageSrc = (id, width = 1400) => 'https://images.unsplash.com/' + id + '?auto=format&fit=crop&w=' + width + '&q=85';
-  const presets = [
-    {id:'mediterranean',label:'Mediterranean Days',hint:'BY THE SEA',title:'Where the sun stays.',place:'A summer by the sea',image:'photo-1533105079780-92b9be482077',code:'01'},
-    {id:'japan',label:'The Quiet Streets',hint:'THE OLD TOWN',title:'A walk without a map.',place:'Somewhere in Japan',image:'photo-1493976040374-85c8e12f0c0e',code:'02'},
-    {id:'alps',label:'Above the Clouds',hint:'MOUNTAIN AIR',title:'Closer to the sky.',place:'The mountains',image:'photo-1464822759023-fed622ff2c3b',code:'03'},
-    {id:'paris',label:'The City Lights',hint:'CITY IN BLOOM',title:'One more afternoon.',place:'Paris, France',image:'photo-1502602898657-3e91760cbb34',code:'04'},
-    {id:'desert',label:'Golden Silence',hint:'OPEN LAND',title:'All the quiet in the world.',place:'The desert',image:'photo-1509316785289-025f5b846b35',code:'05'},
-    {id:'openroad',label:'The Open Road',hint:'SOMEWHERE FAR',title:'Take the long way.',place:'On the road',image:'photo-1500530855697-b586d89ba3ee',code:'06'}
-  ];
-  const DEFAULT = () => ({
-    id:null,scene:'mediterranean',customImage:null,zoom:100,title:'Where the sun stays.',place:'A summer by the sea',
-    date:localDay(),message:'There are days that feel like they were made to remember.',
-    template:'editorial',orientation:'landscape',favorite:false,createdAt:null,updatedAt:null
-  });
-  let draft = DEFAULT();
-  let originalSignature = '';
-  let currentFace = 'front';
-  let mobileView = 'edit';
-  let filter = 'all';
-  let postcards = [];
-  let renderSeq = 0;
+
+  const MAX_COUNT = 30;
+  const MAX_BYTES = 35 * 1024 * 1024;
+  const MAX_PIXELS = 65_000_000;
+  const $ = id => document.getElementById(id);
+  const $$ = selector => Array.from(document.querySelectorAll(selector));
+  const encode = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const supported = new Set(['image/jpeg','image/png','image/webp']);
+  const stored = [];
+  const config = {format:'auto', size:2560, quality:82};
+  let epoch = 0;
+  let processing = false;
+  let runDelay;
   let toastTimer;
-  let dbPromise = null;
-  let customDialogResolver = null;
-  let lastFocus = null;
-  const cachedPhotos = new Map();
+  let compareItemId = null;
+  let priorFocus = null;
+  const makeId = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const sizeText = bytes => {
+    if (bytes === null || !Number.isFinite(bytes)) return '—';
+    const units = ['B','KB','MB','GB'];
+    let num = Math.max(0, bytes);
+    let index = 0;
+    while (num >= 1024 && index < units.length - 1) {num /= 1024;index++;}
+    return (index === 0 ? Math.round(num) : num.toFixed(num >= 100 ? 0 : 1)) + ' ' + units[index];
+  };
+  const percent = (before, after) => Math.round((1 - after / Math.max(before,1)) * 100);
+  const ext = mime => mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png';
+  const sanitized = name => String(name).replace(/[/\\:*?"<>|\x00-\x1f]/g,'_').trim().slice(0,160) || 'image';
+  const outputName = (name,mime) => {
+    const basename=sanitized(name).replace(/\.(jpe?g|png|webp)$/i,'') || 'image';
+    return basename + '-press.' + ext(mime);
+  };
 
-  function notify(message) {
-    const box = byId('toast');
-    box.textContent = message;
-    box.classList.add('show');
+  function toast(message) {
+    const node = $('toast');
+    node.textContent = message;
+    node.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => box.classList.remove('show'), 3000);
+    toastTimer = setTimeout(() => node.classList.remove('show'), 3300);
   }
 
-  function ask(title, message, okText='계속하기') {
-    if (customDialogResolver) customDialogResolver(false);
-    return new Promise(resolve => {
-      customDialogResolver = resolve;
-      byId('confirmTitle').textContent = title;
-      byId('confirmText').textContent = message;
-      byId('acceptConfirm').textContent = okText + ' ↗';
-      byId('confirmDialog').hidden = false;
-      byId('cancelConfirm').focus();
-    });
+  function syncSettings() {
+    $('formatSelect').value = config.format;
+    $('sizeSelect').value = String(config.size);
+    $('qualityRange').value = String(config.quality);
+    $('qualityText').textContent = config.quality + '%';
   }
 
-  function answerDialog(result) {
-    byId('confirmDialog').hidden = true;
-    if (customDialogResolver) {
-      const fn = customDialogResolver;
-      customDialogResolver = null;
-      fn(result);
+  function render() {
+    const section = $('resultsSection');
+    if (!stored.length) {
+      section.hidden = true;
+      return;
     }
+    section.hidden = false;
+    const ready = stored.filter(item => item.status === 'ready');
+    const errors = stored.filter(item => item.status === 'error');
+    const busy = stored.filter(item => item.status === 'queued' || item.status === 'processing');
+    const originalTotal = ready.reduce((n,item)=>n+item.file.size,0);
+    const afterTotal = ready.reduce((n,item)=>n+item.result.size,0);
+    $('savedPercent').textContent = ready.length ? (percent(originalTotal,afterTotal) >= 0 ? '−' : '+') + Math.abs(percent(originalTotal,afterTotal)) + '%' : '—';
+    $('totalBefore').textContent = ready.length ? sizeText(originalTotal) : '—';
+    $('totalAfter').textContent = ready.length ? sizeText(afterTotal) : '—';
+    $('savedPercent').style.color = ready.length && afterTotal > originalTotal ? '#ab7254' : '#476d52';
+    $('listCount').textContent = 'FILES / ' + stored.length;
+    $('progressText').textContent = busy.length
+      ? '변환 중 · ' + ready.length + '/' + stored.length
+      : errors.length ? ready.length + '장 완료 · ' + errors.length + '장 확인 필요'
+      : '모두 준비됐어요 · ' + ready.length + '장';
+    $('downloadAll').disabled = busy.length > 0 || !ready.length;
+    const html = stored.map(item => {
+      const dimensions = item.width && item.height ? item.width + ' × ' + item.height + 'px' : '이미지 확인 중';
+      const result = item.result;
+      const saving = result ? percent(item.file.size,result.size) : 0;
+      const status = item.status;
+      const thumb = item.originalUrl || '';
+      return `<article class="file-row ${status==='processing'||status==='queued'?'busy':''} ${status==='error'?'failed':''}" data-id="${encode(item.id)}">
+        <img class="file-thumb" src="${encode(thumb)}" alt="" loading="lazy">
+        <div class="file-name-col"><strong title="${encode(item.file.name)}">${encode(item.file.name)}</strong><span>${encode(dimensions)}</span></div>
+        <div class="file-sizes"><del>${sizeText(item.file.size)}</del><strong>${status==='ready' ? sizeText(result.size) : '—'}</strong></div>
+        <div class="file-saving">
+          ${status==='ready'
+            ? `<span class="${saving<0?'worse':''}">${item.keptOriginal ? '원본 유지' : saving>=0 ? '−'+saving+'%' : '+'+Math.abs(saving)+'%'} </span>
+               <button type="button" data-compare="${encode(item.id)}" aria-label="${encode(item.file.name)} 변환 전후 비교">비교 ↗</button>`
+            : status==='error'
+              ? `<span class="worse">처리 실패</span><span class="file-error" title="${encode(item.error||'')}">${encode(item.error||'사진을 열 수 없어요.')}</span>`
+              : '<span>압축하는 중...</span>'}
+        </div>
+        <div class="file-actions">
+          <button class="file-download" type="button" data-download="${encode(item.id)}" ${status==='ready'?'':'disabled'}>저장 ↓</button>
+          <button class="file-remove" type="button" data-remove="${encode(item.id)}" title="이 사진 제거" aria-label="${encode(item.file.name)} 제거">×</button>
+        </div>
+      </article>`;
+    }).join('');
+    $('fileList').innerHTML = html;
   }
 
-  function makeGallery() {
-    byId('destinationGrid').innerHTML = presets.map((p, i) => `
-      <button class="destination-card" type="button" data-preset="${p.id}" aria-label="${escapes(p.label)} 사진으로 엽서 만들기">
-        <img src="${imageSrc(p.image, i===0 ? 1200 : 850)}" loading="${i < 2 ? 'eager' : 'lazy'}" alt="${escapes(p.label)} 분위기의 풍경 사진">
-        <span class="d-top"><span>FIG. ${p.code} / THE JOURNEY EDIT</span><span aria-hidden="true">↗</span></span>
-        <span class="d-bottom"><span><strong>${escapes(p.label)}</strong><small>${escapes(p.hint)}</small></span><i>✳</i></span>
-      </button>`).join('');
-    byId('imagePicker').innerHTML = presets.map(p => `
-      <button class="image-option" type="button" data-image="${p.id}" aria-label="${escapes(p.label)} 배경으로 선택" aria-pressed="false">
-        <img src="${imageSrc(p.image, 300)}" alt="${escapes(p.label)}" loading="lazy"></button>`).join('');
-    $$('#destinationGrid [data-preset]').forEach(btn => btn.addEventListener('click', () => openStudio(btn.dataset.preset)));
-    $$('#imagePicker [data-image]').forEach(btn => btn.addEventListener('click', () => {
-      const p = presets.find(item => item.id === btn.dataset.image);
-      if (!p) return;
-      const previous = presets.find(item => item.id === draft.scene);
-      const originalTitle = previous?.title || '';
-      const originalPlace = previous?.place || '';
-      if (!draft.title.trim() || draft.title === originalTitle) draft.title = p.title;
-      if (!draft.place.trim() || draft.place === originalPlace) draft.place = p.place;
-      draft.scene = p.id;
-      draft.customImage = null;
-      draft.zoom = 100;
-      syncInputs();
-      markDirty();
-      renderCard();
-    }));
+  function cleanupResult(item) {
+    if(item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+    item.outputUrl = null;
+    item.result = null;
+    item.keptOriginal = false;
+  }
+  function clearItem(item) {
+    cleanupResult(item);
+    if(item.originalUrl) URL.revokeObjectURL(item.originalUrl);
+    item.originalUrl=null;
   }
 
-  function photoFor(data) {
-    if (data.customImage) return data.customImage;
-    const preset = presets.find(p => p.id === data.scene) || presets[0];
-    return imageSrc(preset.image, 2200);
-  }
-
-  function signature(data) {
-    return JSON.stringify({
-      scene:data.scene,customImage:data.customImage,zoom:data.zoom,title:data.title,
-      place:data.place,date:data.date,message:data.message,template:data.template,orientation:data.orientation
-    });
-  }
-
-  function markDirty() {
-    const changed = signature(draft) !== originalSignature;
-    byId('unsavedIndicator').textContent = changed ? 'UNSAVED CHANGES ✳' : (draft.id ? 'SAVED MEMORY' : 'NEW MEMORY');
-  }
-
-  function syncInputs() {
-    byId('titleInput').value = draft.title || '';
-    byId('placeInput').value = draft.place || '';
-    byId('dateInput').value = draft.date || localDay();
-    byId('messageInput').value = draft.message || '';
-    byId('imageZoom').value = draft.zoom || 100;
-    byId('zoomValue').textContent = (draft.zoom || 100) + '%';
-    byId('charCount').textContent = (draft.message || '').length + ' / 240';
-    $$('#imagePicker [data-image]').forEach(b => {
-      const active = !draft.customImage && b.dataset.image === draft.scene;
-      b.classList.toggle('active', active);
-      b.setAttribute('aria-pressed', String(active));
-    });
-    $('.upload-photo').classList.toggle('selected-photo', !!draft.customImage);
-    $$('#templatePicker [data-template]').forEach(b => {
-      const active = draft.template === b.dataset.template;
-      b.classList.toggle('selected', active);b.setAttribute('aria-pressed', String(active));
-    });
-    $$('[data-orientation]').forEach(b => {
-      const active = draft.orientation === b.dataset.orientation;
-      b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));
-    });
-    $$('.front-back-toggle button').forEach(b => {
-      const active = b.dataset.face === currentFace;
-      b.classList.toggle('active', active);b.setAttribute('aria-pressed',String(active));
-    });
-    updateMobileView();
-  }
-
-  function updateMobileView() {
-    const shell = byId('studioLayout');
-    shell.classList.toggle('view-edit', mobileView === 'edit');
-    shell.classList.toggle('view-preview', mobileView === 'preview');
-    $$('[data-mobile-view]').forEach(b => {
-      const active = b.dataset.mobileView === mobileView;
-      b.classList.toggle('active', active);b.setAttribute('aria-pressed', String(active));
-    });
-    if (mobileView === 'preview') renderCard();
-  }
-
-  async function openStudio(presetId=null, saved=null) {
-    lastFocus = document.activeElement;
-    if (saved) {
-      draft = {...DEFAULT(),...structuredClone(saved)};
-    } else {
-      draft = DEFAULT();
-      if (presetId) {
-        const p = presets.find(item => item.id === presetId);
-        if (p) Object.assign(draft, {scene:p.id,title:p.title,place:p.place});
-      }
+  async function acceptFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const available = Math.max(0,MAX_COUNT-stored.length);
+    const selected = files.slice(0,available);
+    let ignored = files.length-selected.length;
+    let unsupported = 0;
+    let oversized = 0;
+    const added = [];
+    for (const file of selected) {
+      if (!supported.has(file.type)) {unsupported++;continue;}
+      if (file.size > MAX_BYTES) {oversized++;continue;}
+      if (!file.size) {unsupported++;continue;}
+      const originalUrl = URL.createObjectURL(file);
+      const item = {id:makeId(), file, originalUrl, outputUrl:null, result:null, status:'queued',width:null,height:null,error:'',keptOriginal:false};
+      stored.push(item);
+      added.push(item);
     }
-    currentFace = 'front';
-    mobileView = 'edit';
-    syncInputs();
-    originalSignature = signature(draft);
-    markDirty();
-    byId('studio').hidden = false;
-    document.body.classList.add('studio-open');
-    $('.studio-form-side').scrollTop = 0;
-    byId('studioTitle').textContent = '';
-    byId('studioTitle').innerHTML = draft.id ? 'Revisit a<br><em>little memory.</em>' : 'Make something<br><em>worth keeping.</em>';
-    byId('savePostcard').firstChild.textContent = draft.id ? '변경사항 저장 ' : '내 보관함에 저장 ';
-    byId('fileInput').value = '';
-    await renderCard();
-    byId('closeStudio').focus();
+    if (ignored) toast('최대 30장까지 처리할 수 있어요. ' + ignored + '장은 제외했어요.');
+    else if (oversized) toast('35MB를 넘는 ' + oversized + '장은 제외했어요.');
+    else if (unsupported) toast('JPG·PNG·WEBP 파일만 지원해요. ' + unsupported + '장은 제외했어요.');
+    if(!added.length) return;
+    render();
+    const section = $('resultsSection');
+    section.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+    void runQueue();
   }
 
-  async function closeStudio() {
-    if (signature(draft) !== originalSignature) {
-      const yes = await ask('아직 완성하지 않았어요.', '저장하지 않은 편집 내용이 사라져요. 그래도 나갈까요?', '나가기');
-      if (!yes) return;
+  async function decodeImage(file) {
+    if ('createImageBitmap' in window) {
+      try {
+        const bitmap = await createImageBitmap(file,{imageOrientation:'from-image'});
+        return {image:bitmap,width:bitmap.width,height:bitmap.height,dispose:()=>bitmap.close()};
+      } catch { /* fallback below */ }
     }
-    byId('studio').hidden = true;
-    document.body.classList.remove('studio-open');
-    if (lastFocus?.focus) lastFocus.focus({preventScroll:true});
-    renderSeq++;
-  }
-
-  function shapeW() {return draft.orientation === 'landscape' ? 1600 : 1200;}
-  function shapeH() {return draft.orientation === 'landscape' ? 1200 : 1600;}
-
-  function loadPicture(url) {
-    if (!url) return Promise.reject(new Error('NO_IMAGE'));
-    if (cachedPhotos.has(url)) return cachedPhotos.get(url);
-    const promise = new Promise((resolve,reject) => {
-      const img = new Image();
-      if (!url.startsWith('data:')) img.crossOrigin = 'anonymous';
-      img.decoding = 'async';
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('IMAGE_UNAVAILABLE'));
-      img.src = url;
-    });
-    cachedPhotos.set(url,promise);
-    promise.catch(() => cachedPhotos.delete(url));
-    if (cachedPhotos.size > 14) {
-      for (const key of cachedPhotos.keys()) {
-        if (key !== url) { cachedPhotos.delete(key); break; }
-      }
-    }
-    return promise;
-  }
-
-  const font = (size,kind='serif',ital=false) =>
-    kind === 'mono' ? `${size}px "DM Mono",monospace` :
-    kind === 'sans' ? `${size}px "Noto Sans KR",sans-serif` :
-    `${ital ? 'italic ' : ''}${size}px "Instrument Serif",Georgia,serif`;
-  function text(ctx, str, x, y, size, color, opts={}) {
-    ctx.save();ctx.font = font(size,opts.type,opts.italic);
-    ctx.textBaseline=opts.baseline || 'alphabetic';
-    ctx.textAlign=opts.align || 'left';
-    ctx.fillStyle=color;
-    if (opts.shadow) {ctx.shadowColor='#0006';ctx.shadowBlur=18;ctx.shadowOffsetY=3;}
-    if (Number.isFinite(opts.maxWidth) && opts.maxWidth > 0) ctx.fillText(str,x,y,opts.maxWidth);
-    else ctx.fillText(str,x,y);
-    ctx.restore();
-  }
-  function horizontalRule(ctx,x,y,width,color='#d7cabe',stroke=1) {
-    ctx.fillStyle=color;ctx.fillRect(x,y,width,stroke);
-  }
-  function wrap(ctx,string,maxWidth,fontSize,kind='serif',maxLines=3) {
-    const words = String(string || '').trim().split(/\s+/).filter(Boolean);
-    ctx.save();ctx.font=font(fontSize,kind);
-    const lines=[];
-    let line='';
-    // Words are split by whitespace; break a single unspaced CJK phrase by characters when necessary.
-    const pushOversized = word => {
-      let curr='';
-      for(const char of Array.from(word)) {
-        if (ctx.measureText(curr+char).width > maxWidth && curr) {
-          lines.push(curr);curr=char;
-        } else curr += char;
-      }
-      return curr;
-    };
-    for(const word of words) {
-      if(lines.length>=maxLines) break;
-      const candidate = line ? line+' '+word : word;
-      if(ctx.measureText(candidate).width<=maxWidth) {
-        line=candidate;
-      } else {
-        if(line) {lines.push(line);line='';}
-        if(ctx.measureText(word).width>maxWidth) line=pushOversized(word);
-        else line=word;
-      }
-    }
-    if(line && lines.length<maxLines) lines.push(line);
-    ctx.restore();
-    return lines.slice(0,maxLines);
-  }
-  function drawWrapped(ctx,str,x,y,width,size,lineHeight,color,options={}) {
-    const lines=wrap(ctx,str,width,size,options.type||'serif',options.maxLines||3);
-    lines.forEach((line,index) => text(ctx,line,x,y+index*lineHeight,size,color,options));
-    return lines.length;
-  }
-  function paintPaper(ctx,w,h,color='#f5f0e7') {
-    ctx.fillStyle=color;ctx.fillRect(0,0,w,h);
-    // Deterministic photographic paper texture (not illustrative geometry).
-    let seed=19011;
-    const random=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296;};
-    ctx.save();ctx.fillStyle='rgba(68,55,39,.036)';
-    for(let n=0;n<4600;n++) {const x=random()*w,y=random()*h;ctx.fillRect(x,y,.5+random(),.5+random());}
-    ctx.restore();
-  }
-  function coverPhoto(ctx,img,x,y,width,height,zoom=100,tint=null) {
-    ctx.save();
-    ctx.beginPath();ctx.rect(x,y,width,height);ctx.clip();
-    ctx.fillStyle='#c8c0b4';ctx.fillRect(x,y,width,height);
-    if(img) {
-      const iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
-      const scale=Math.max(width/iw,height/ih)*(Math.max(100,Math.min(165,zoom))/100);
-      const dw=iw*scale,dh=ih*scale;
-      ctx.drawImage(img,x+(width-dw)/2,y+(height-dh)/2,dw,dh);
-    } else {
-      const g=ctx.createLinearGradient(x,y,x+width,y+height);
-      g.addColorStop(0,'#c8b4a1');g.addColorStop(1,'#726a66');
-      ctx.fillStyle=g;ctx.fillRect(x,y,width,height);
-    }
-    if(tint){ctx.fillStyle=tint;ctx.fillRect(x,y,width,height);}
-    ctx.restore();
-  }
-  function stamp(ctx,x,y,r,label='ELSEWHERE') {
-    ctx.save();
-    ctx.translate(x,y);ctx.rotate(-.15);
-    ctx.strokeStyle='#926e5da8';ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.arc(0,0,r-9,0,Math.PI*2);ctx.stroke();
-    text(ctx,label,0,-8,Math.max(10,r*.24),'#866555',{align:'center',type:'mono',maxWidth:r*1.5});
-    horizontalRule(ctx,-r*.55,0,r*1.1,'#987865',2);
-    text(ctx,'✳',0,r*.45,Math.max(14,r*.48),'#866555',{align:'center'});
-    ctx.restore();
-  }
-  function niceDate(value) {
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(value||'')) return 'UNDATED';
-    const [y,m,d]=value.split('-');
-    return d+' / '+m+' / '+y;
-  }
-  function paintEditorial(ctx,img,w,h,p) {
-    paintPaper(ctx,w,h,'#f6f2e9');
-    const border=w*.044;
-    const portrait=h>w;
-    const photoHeight=portrait?h*.715:h*.72;
-    coverPhoto(ctx,img,border,border,w-2*border,photoHeight,p.zoom);
-    const lower=border+photoHeight;
-    const left=border+9;
-    text(ctx,'ELSEWHERE / TRAVEL NOTES',left,lower+39,w*.0105,'#867a6e',{type:'mono'});
-    text(ctx,niceDate(p.date),w-border-4,lower+39,w*.0105,'#867a6e',{align:'right',type:'mono'});
-    horizontalRule(ctx,left,lower+57,w-2*border-18,'#d9cbbd',1.4);
-    const title=p.title.trim()||'A place to remember.';
-    const titleSize=portrait?w*.076:w*.067;
-    const lines=wrap(ctx,title,w-2*border-30,titleSize,'serif',2);
-    const start=lower+(portrait?135:142);
-    lines.forEach((line,i)=>text(ctx,line,left,start+i*titleSize*.88,titleSize,'#3c3732',{italic:i===0,maxWidth:w-2*border-26}));
-    const noteY=Math.min(h-border-22,start+(lines.length)*titleSize*.88+(portrait?45:35));
-    text(ctx,(p.place.trim()||'SOMEWHERE SPECIAL').toUpperCase(),left,noteY,w*.012,'#8b7064',{type:'mono',maxWidth:w*.75});
-    text(ctx,'✳',w-border-12,h-border-14,30,'#9d7765',{align:'right'});
-  }
-  function paintCinema(ctx,img,w,h,p) {
-    coverPhoto(ctx,img,0,0,w,h,p.zoom);
-    const shade=ctx.createLinearGradient(0,h*.21,0,h);
-    shade.addColorStop(0,'rgba(8,13,14,.03)');shade.addColorStop(.47,'rgba(8,13,14,.23)');shade.addColorStop(1,'rgba(7,11,13,.83)');
-    ctx.fillStyle=shade;ctx.fillRect(0,0,w,h);
-    const edge=w*.05;
-    text(ctx,'ELSEWHERE.',edge,edge+11,w*.016,'#fff1df',{type:'mono',shadow:true});
-    text(ctx,'FRAME / '+(p.date||'0000').replaceAll('-','.'),w-edge,edge+11,w*.011,'#fff1df',{align:'right',type:'mono'});
-    const size=w*.103;
-    const title=p.title.trim()||'This is the moment.';
-    const lines=wrap(ctx,title,w-2*edge,size,'serif',3);
-    const base=h-h*.18-(lines.length-1)*size*.83;
-    lines.forEach((line,i)=>text(ctx,line,edge,base+i*size*.83,size,'#fff8ed',{italic:i===0,shadow:true,maxWidth:w-2*edge}));
-    horizontalRule(ctx,edge,h-edge-47,w-2*edge,'#fff8ed80',1.5);
-    text(ctx,(p.place||'SOMEWHERE').toUpperCase(),edge,h-edge-7,w*.014,'#fff2e5',{type:'mono',maxWidth:w*.65});
-    text(ctx,'A MEMORY TO KEEP  ✳',w-edge,h-edge-7,w*.011,'#fff2e5',{type:'mono',align:'right'});
-  }
-  function paintClassic(ctx,img,w,h,p) {
-    paintPaper(ctx,w,h,'#eae3d6');
-    const portrait=h>w,edge=w*.077;
-    const photoY=edge+42,photoH=portrait?h*.6:h*.635;
-    coverPhoto(ctx,img,edge,photoY,w-2*edge,photoH,p.zoom,'rgba(112,81,51,.11)');
-    ctx.strokeStyle='#bdb2a2';ctx.lineWidth=2;
-    ctx.strokeRect(edge-12,photoY-12,w-2*edge+24,photoH+24);
-    text(ctx,'THE POSTCARD COLLECTION  /  NO. '+(p.scene==='custom'?'00':String(Math.max(1,presets.findIndex(x=>x.id===p.scene)+1)).padStart(2,'0')),w/2,edge-1,w*.0105,'#887768',{type:'mono',align:'center'});
-    const under=photoY+photoH;
-    text(ctx,'POSTCARD FROM SOMEWHERE',w/2,under+(portrait?90:86),w*.014,'#9e7960',{type:'mono',align:'center'});
-    const title=p.title.trim()||'Wish you were here.';
-    const size=portrait?w*.067:w*.068;
-    const lines=wrap(ctx,title,w-2*edge,size,'serif',2);
-    const base=under+(portrait?188:175);
-    lines.forEach((line,i)=>text(ctx,line,w/2,base+i*size*.86,size,'#554235',{italic:true,align:'center',maxWidth:w-2*edge}));
-    const footer=h-edge+4;
-    horizontalRule(ctx,edge,footer-43,w-2*edge,'#baa994',2);
-    text(ctx,(p.place||'AN UNNAMED PLACE').toUpperCase(),edge,footer,w*.012,'#836957',{type:'mono',maxWidth:w*.7});
-    text(ctx,niceDate(p.date),w-edge,footer,w*.011,'#836957',{type:'mono',align:'right'});
-  }
-  function paintBack(ctx,w,h,p) {
-    paintPaper(ctx,w,h,'#f1eadd');
-    const portrait=h>w,edge=w*.075;
-    const yTop=edge+64;
-    text(ctx,'ELSEWHERE — THE POSTCARD ATELIER',edge,edge*.7,w*.012,'#856b5b',{type:'mono'});
-    text(ctx,'PRIVATE CORRESPONDENCE  /  '+niceDate(p.date),w-edge,edge*.7,w*.011,'#9c8c7e',{type:'mono',align:'right'});
-    horizontalRule(ctx,edge,yTop,w-2*edge,'#c2b5a5',2);
-    if(portrait) {
-      stamp(ctx,w-edge-91,yTop+126,72,'POSTMARK');
-      text(ctx,'Dear memory,',edge,yTop+100,w*.064,'#806d5a',{italic:true});
-      const fontSize=w*.030;
-      const lines=wrap(ctx,p.message.trim()||'Some moments deserve to stay.',w-2*edge-14,fontSize,'sans',9);
-      lines.forEach((line,i)=>text(ctx,line,edge,yTop+180+i*fontSize*1.65,fontSize,'#51493f',{type:'sans'}));
-      horizontalRule(ctx,edge,h-edge-196,w-2*edge,'#c9bcac',1.5);
-      text(ctx,'SENT FROM',edge,h-edge-153,w*.012,'#a08b79',{type:'mono'});
-      drawWrapped(ctx,p.place||'SOMEWHERE',edge,h-edge-85,w-2*edge,w*.050,w*.060,'#584d40',{italic:true,maxLines:2});
-      text(ctx,'WITH LOVE, ALWAYS',edge,h-edge-5,w*.013,'#a08b79',{type:'mono'});
-    } else {
-      const xRight=w*.54;
-      ctx.fillStyle='#c5b8aa';ctx.fillRect(xRight,yTop+42,2,h-yTop-2*edge);
-      stamp(ctx,w-edge-107,yTop+139,92,'POSTMARK');
-      text(ctx,'A little note',edge,yTop+142,w*.059,'#7c6253',{italic:true});
-      const size=w*.021;
-      const lines=wrap(ctx,p.message.trim()||'Some moments deserve to stay.',xRight-2*edge-37,size,'sans',9);
-      lines.forEach((line,i)=>text(ctx,line,edge,yTop+211+i*size*1.58,size,'#564b40',{type:'sans'}));
-      text(ctx,'TO THE PLACE I STILL THINK OF',xRight+37,yTop+355,w*.012,'#907767',{type:'mono'});
-      horizontalRule(ctx,xRight+37,yTop+393,w-edge-xRight-37,'#baa998',1);
-      text(ctx,p.place.trim()||'Somewhere wonderful',xRight+37,yTop+459,w*.037,'#6f5144',{italic:true,maxWidth:w-edge-xRight-37});
-      horizontalRule(ctx,xRight+37,yTop+482,w-edge-xRight-37,'#baa998',1);
-      text(ctx,niceDate(p.date),xRight+37,yTop+554,w*.016,'#7f7165',{type:'mono'});
-      text(ctx,'WISH YOU WERE HERE  /  ALWAYS',edge,h-edge+7,w*.011,'#a2907e',{type:'mono'});
-    }
-    horizontalRule(ctx,edge,h-edge+22,w-2*edge,'#bba996',2);
-  }
-
-  async function renderCard(force=false) {
-    if(byId('studio').hidden && !force) return false;
-    const seq=++renderSeq;
-    const stage=byId('postcardCanvas');
-    const w=shapeW(),h=shapeH();
-    byId('canvasLoading').hidden=false;
-    byId('formatLabel').textContent=w+' × '+h+' PX · PNG';
-    const snap={...draft};
-    let img=null;
-    if(currentFace==='front') {
-      try {img=await loadPicture(photoFor(snap));}catch {
-        if(seq===renderSeq) notify('풍경 사진을 불러오지 못했어요. 다른 사진을 선택해 주세요.');
-      }
-    }
-    if(document.fonts?.ready) {try{await document.fonts.ready;}catch{ /* browser fallback */ }}
-    if(seq!==renderSeq) return false;
-    stage.width=w;stage.height=h;
-    const ctx=stage.getContext('2d',{alpha:false});
-    if(!ctx) {byId('canvasLoading').hidden=true;notify('이 기기에서 캔버스 미리보기를 지원하지 않아요.');return false;}
-    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-    if(currentFace==='back') paintBack(ctx,w,h,snap);
-    else if(snap.template==='cinema') paintCinema(ctx,img,w,h,snap);
-    else if(snap.template==='classic') paintClassic(ctx,img,w,h,snap);
-    else paintEditorial(ctx,img,w,h,snap);
-    byId('canvasLoading').hidden=true;
-    return true;
-  }
-
-  function requestPreview() {
-    // Run after the current input events, but don't queue duplicate heavy renders.
-    clearTimeout(requestPreview.pending);
-    requestPreview.pending=setTimeout(()=>renderCard(),120);
-  }
-
-  async function fileToCompressedImage(file) {
-    if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('FORMAT');
-    if (file.size>20*1024*1024) throw new Error('TOO_BIG');
-    const readData=new Promise((resolve,reject) => {
-      const reader=new FileReader();
-      reader.onload=()=>resolve(reader.result);
-      reader.onerror=()=>reject(new Error('READ'));
-      reader.readAsDataURL(file);
-    });
-    const src=await readData;
-    const image=await loadPicture(src);
-    const edge=2400;
-    const factor=Math.min(1,edge/Math.max(image.width,image.height));
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round(image.width*factor));
-    canvas.height=Math.max(1,Math.round(image.height*factor));
-    const ctx=canvas.getContext('2d');
-    if (!ctx) throw new Error('CANVAS');
-    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(image,0,0,canvas.width,canvas.height);
-    return canvas.toDataURL('image/jpeg',.88);
-  }
-
-  async function handleUpload(event) {
-    const file=event.target.files?.[0];
-    if (!file) return;
-    notify('사진을 엽서에 맞게 준비하고 있어요.');
+    const url=URL.createObjectURL(file);
     try {
-      const compressed=await fileToCompressedImage(file);
-      draft.customImage=compressed;
-      draft.scene='custom';
-      draft.zoom=100;
-      if(!draft.title.trim()) draft.title='A moment of mine.';
-      syncInputs();
-      markDirty();
-      await renderCard();
-      notify('내 사진을 적용했어요. 원하는 문장을 넣어보세요.');
-    } catch(e) {
-      notify(e.message==='TOO_BIG'?'20MB 이하의 사진을 선택해 주세요.': 'JPG, PNG, WEBP 파일인지 확인해 주세요.');
-    } finally {event.target.value='';}
+      const image = new Image();
+      image.decoding='async';
+      await new Promise((resolve,reject)=>{
+        image.onload=resolve;
+        image.onerror=()=>reject(new Error('파일을 이미지로 읽을 수 없어요.'));
+        image.src=url;
+      });
+      return {image,width:image.naturalWidth,height:image.naturalHeight,dispose:()=>{}};
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  function chooseMime(file) {
+    if (config.format === 'jpeg') return 'image/jpeg';
+    if (config.format === 'png') return 'image/png';
+    if (config.format === 'webp') return 'image/webp';
+    return file.type === 'image/png' ? 'image/webp' : file.type;
+  }
+
+  function canvasBlob(canvas,type,quality) {
+    return new Promise((resolve,reject)=>{
+      try {canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('브라우저에서 이미지 변환에 실패했어요.')),type,quality);}
+      catch {reject(new Error('이미지를 저장할 수 없어요.'));}
+    });
+  }
+
+  async function convert(item,options) {
+    let decoded;
+    try {
+      decoded = await decodeImage(item.file);
+      const {image,width,height} = decoded;
+      if(!width || !height) throw new Error('사진 크기를 확인할 수 없어요.');
+      if(width*height>MAX_PIXELS) throw new Error('사진이 너무 커요. 65MP 이하만 지원해요.');
+      const scale = options.size>0 ? Math.min(1,options.size/Math.max(width,height)) : 1;
+      const w = Math.max(1,Math.round(width*scale));
+      const h = Math.max(1,Math.round(height*scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const context = canvas.getContext('2d',{alpha:true});
+      if(!context) throw new Error('이미지를 편집할 수 없는 브라우저예요.');
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+      const requested = options.format==='auto'
+        ? item.file.type==='image/png'?'image/webp':item.file.type
+        : options.format==='jpeg'?'image/jpeg'
+          : options.format==='png'?'image/png':'image/webp';
+      if(requested==='image/jpeg') {
+        context.fillStyle='#ffffff';
+        context.fillRect(0,0,w,h);
+      }
+      context.drawImage(image,0,0,w,h);
+      const blob = await canvasBlob(canvas,requested,options.quality/100);
+      // A browser may silently replace an unsupported encoder with PNG.
+      const actualMime = supported.has(blob.type) ? blob.type : 'image/png';
+      const dimensionsUnchanged = w===width && h===height;
+      const sameType = actualMime===item.file.type;
+      const keepOriginal = options.format==='auto' && dimensionsUnchanged && sameType && blob.size>=item.file.size;
+      return {blob:keepOriginal?item.file:blob,outputType:keepOriginal?item.file.type:actualMime,width,height,w,h,keptOriginal:keepOriginal};
+    } finally {
+      if(decoded?.dispose)decoded.dispose();
+    }
+  }
+
+  async function runQueue() {
+    if(processing) return;
+    processing=true;
+    try {
+      while(true) {
+        const job=stored.find(item=>item.status==='queued');
+        if(!job) break;
+        const token=epoch;
+        const options={...config};
+        job.status='processing';
+        render();
+        let conversion=null;
+        try {
+          conversion = await convert(job,options);
+          if(!stored.includes(job)) continue;
+          if(token!==epoch) {job.status='queued';continue;}
+          cleanupResult(job);
+          job.width=conversion.width;
+          job.height=conversion.height;
+          job.result=conversion.blob;
+          job.outputUrl=URL.createObjectURL(conversion.blob);
+          job.outputType=conversion.outputType;
+          job.outputWidth=conversion.w;
+          job.outputHeight=conversion.h;
+          job.keptOriginal=conversion.keptOriginal;
+          job.status='ready';
+          job.error='';
+        } catch(error) {
+          if(!stored.includes(job)) continue;
+          if(token!==epoch) {job.status='queued';continue;}
+          job.status='error';
+          job.error=String(error?.message||'변환할 수 없는 파일이에요.').slice(0,90);
+        }
+        render();
+      }
+    } finally {
+      processing=false;
+      render();
+      if(stored.some(item=>item.status==='queued')) setTimeout(runQueue,0);
+    }
+  }
+
+  function changeSettings() {
+    epoch++;
+    clearTimeout(runDelay);
+    for(const item of stored) {
+      cleanupResult(item);
+      item.status='queued';
+      item.error='';
+    }
+    render();
+    runDelay=setTimeout(()=>void runQueue(),220);
   }
 
   function downloadBlob(blob,filename) {
     const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;a.download=filename;
-    document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    const anchor=document.createElement('a');
+    anchor.href=url;anchor.download=filename;
+    document.body.appendChild(anchor);anchor.click();anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2500);
+  }
+  function singleDownload(item) {
+    if(!item?.result)return;
+    downloadBlob(item.result,outputName(item.file.name,item.outputType));
+    toast('사진을 저장했어요.');
   }
 
-  async function getPng() {
-    const okay=await renderCard(true);
-    if(!okay) throw new Error('RENDER');
-    return new Promise((resolve,reject) => {
-      try {
-        byId('postcardCanvas').toBlob(blob=>blob?resolve(blob):reject(new Error('EXPORT')),'image/png');
-      } catch (e) {reject(e);}
-    });
+  // ZIP: store already-compressed images without recompressing them. RFC 1952-style CRC-32,
+  // standard ZIP local file headers, central directory, and EOCD. UTF-8 filename flag set.
+  const crcTable = Array.from({length:256},(_,index)=>{
+    let x=index;
+    for(let b=0;b<8;b++) x=(x&1)?(0xEDB88320^(x>>>1)):(x>>>1);
+    return x>>>0;
+  });
+  function crc32(bytes) {
+    let crc=0xFFFFFFFF;
+    for(const b of bytes) crc=crcTable[(crc^b)&255]^(crc>>>8);
+    return (crc^0xFFFFFFFF)>>>0;
   }
-  function safeName() {
-    return (draft.title||'my-postcard').trim().replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'-').slice(0,48)||'my-postcard';
+  function dosStamp(date=new Date()) {
+    const year=Math.max(1980,Math.min(2107,date.getFullYear()));
+    return {date:((year-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate(),
+      time:(date.getHours()<<11)|(date.getMinutes()<<5)|(Math.floor(date.getSeconds()/2))};
   }
-  async function downloadCurrent() {
-    try {
-      const blob=await getPng();
-      downloadBlob(blob,'elsewhere-'+safeName()+'-'+currentFace+'.png');
-      notify('고해상도 PNG 엽서를 준비했어요.');
-    } catch {
-      notify('사진의 이미지 저장이 제한되었어요. 내 사진을 직접 업로드해 다시 시도해 주세요.');
-    }
+  function makeHeader(size,writer) {
+    const bytes=new Uint8Array(size);
+    const view=new DataView(bytes.buffer);
+    writer(view,bytes);
+    return bytes;
   }
-  async function shareCurrent() {
-    try {
-      const blob=await getPng();
-      const file=new File([blob],'elsewhere-'+safeName()+'.png',{type:'image/png'});
-      if(navigator.canShare?.({files:[file]}) && navigator.share) {
-        try {await navigator.share({files:[file],title:'My postcard / ELSEWHERE'});}
-        catch(e) {if(e.name!=='AbortError') notify('공유를 완료하지 못했어요. 다운로드를 이용해 주세요.');}
-      } else {
-        downloadBlob(blob,file.name);
-        notify('이 기기는 이미지 공유를 지원하지 않아 PNG로 저장했어요.');
+  async function makeZip(rows) {
+    if(rows.length>0xFFFF) throw new Error('ZIP 파일 수 제한을 초과했어요.');
+    const encoder=new TextEncoder();
+    const parts=[];
+    const directory=[];
+    const usedNames=new Set();
+    let offset=0, directorySize=0;
+    const stamp=dosStamp();
+    for(const item of rows) {
+      const base=outputName(item.file.name,item.outputType);
+      let filename=base,index=2;
+      while(usedNames.has(filename.toLowerCase())) {
+        filename=base.replace(/(\.[^.]+)$/,' ('+(index++)+')$1');
       }
-    } catch {
-      notify('이미지를 준비하지 못했어요. 업로드한 사진으로 다시 시도해 주세요.');
-    }
-  }
-
-  // IndexedDB: supports larger image payloads than localStorage.
-  function database() {
-    if (dbPromise) return dbPromise;
-    dbPromise=new Promise(resolve => {
-      if (!('indexedDB' in window)) {resolve(null);return;}
-      let request;
-      try {request=indexedDB.open('elsewhere-postcards',1);}catch{resolve(null);return;}
-      request.onupgradeneeded=() => {
-        const db=request.result;
-        if(!db.objectStoreNames.contains('cards')) db.createObjectStore('cards',{keyPath:'id'});
-      };
-      request.onsuccess=()=>resolve(request.result);
-      request.onerror=()=>resolve(null);
-      request.onblocked=()=>resolve(null);
-    });
-    return dbPromise;
-  }
-
-  async function dbOperation(mode, fn) {
-    const db=await database();
-    if(!db) throw new Error('NO_DATABASE');
-    return new Promise((resolve,reject)=>{
-      let tx,req,result;
-      try {
-        tx=db.transaction('cards',mode);
-        req=fn(tx.objectStore('cards'));
-        req.onsuccess=()=>{result=req.result;};
-        req.onerror=()=>reject(req.error||new Error('DATABASE_ERROR'));
-        tx.oncomplete=()=>resolve(result);
-        tx.onabort=()=>reject(tx.error||new Error('DATABASE_ABORT'));
-        tx.onerror=()=>reject(tx.error||new Error('DATABASE_ERROR'));
-      } catch(e){reject(e);}
-    });
-  }
-  async function fetchCards() {
-    try {
-      const list=await dbOperation('readonly',store=>store.getAll());
-      postcards=Array.isArray(list)?list:[];
-    } catch {
-      try {postcards=JSON.parse(localStorage.getItem('elsewhere-fallback-cards')||'[]');}
-      catch {postcards=[];}
-    }
-    postcards.sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
-    renderArchive();
-  }
-  async function persistCard(card) {
-    try {await dbOperation('readwrite',store=>store.put(card));}
-    catch {
-      const current=JSON.parse(localStorage.getItem('elsewhere-fallback-cards')||'[]');
-      const merged=current.filter(x=>x.id!==card.id).concat(card);
-      try {localStorage.setItem('elsewhere-fallback-cards',JSON.stringify(merged));}
-      catch {throw new Error('STORAGE_FULL');}
-    }
-  }
-  async function removeCard(id) {
-    try {await dbOperation('readwrite',store=>store.delete(id));}
-    catch {
-      const current=JSON.parse(localStorage.getItem('elsewhere-fallback-cards')||'[]');
-      localStorage.setItem('elsewhere-fallback-cards',JSON.stringify(current.filter(x=>x.id!==id)));
-    }
-  }
-
-  function thumbnail() {
-    try {
-      const source=byId('postcardCanvas');
-      const preview=document.createElement('canvas');
-      preview.width=source.width>source.height?660:460;
-      preview.height=Math.round(preview.width*source.height/source.width);
-      preview.getContext('2d').drawImage(source,0,0,preview.width,preview.height);
-      return preview.toDataURL('image/jpeg',.71);
-    } catch {return null;}
-  }
-
-  async function saveCurrent() {
-    const title=(draft.title||'').trim();
-    if(!title) {
-      notify('엽서 제목을 한 글자 이상 적어 주세요.');
-      mobileView='edit';updateMobileView();byId('titleInput').focus();
-      return;
-    }
-    if(title.length>60){notify('제목은 60자 이하로 적어 주세요.');return;}
-    const card={...draft,title,place:draft.place.trim().slice(0,55),message:draft.message.trim().slice(0,240)};
-    card.id=card.id||uid();
-    card.createdAt=card.createdAt||new Date().toISOString();
-    card.updatedAt=new Date().toISOString();
-    if(currentFace!=='front') {
-      const face=currentFace;
-      currentFace='front';
-      await renderCard(true);
-      card.preview=thumbnail();
-      currentFace=face;
-      renderCard();
-    } else {
-      await renderCard(true);
-      card.preview=thumbnail();
-    }
-    try {await persistCard(card);}
-    catch {notify('저장 공간이 부족해요. 다른 브라우저 저장 공간을 확인해 주세요.');return;}
-    draft={...card};
-    originalSignature=signature(draft);
-    markDirty();
-    await fetchCards();
-    notify('엽서를 내 보관함에 소중히 저장했어요.');
-    byId('savePostcard').firstChild.textContent='변경사항 저장 ';
-  }
-
-  function renderArchive() {
-    byId('archiveCount').textContent=String(postcards.length).padStart(2,'0');
-    const query=byId('archiveSearch').value.trim().toLocaleLowerCase();
-    const items=postcards.filter(p =>
-      (filter==='all'||p.favorite) &&
-      (!query||[p.title,p.place,p.message].join(' ').toLocaleLowerCase().includes(query))
-    );
-    const grid=byId('archiveGrid');
-    if(!items.length) {
-      const isEmpty=postcards.length===0;
-      grid.innerHTML=`<div class="archive-empty"><div class="empty-flourish">✳</div><h3>${isEmpty ? 'A little space for memories.' : 'Nothing in this little corner.'}</h3>
-      <p>${isEmpty ? '아직 보관된 엽서가 없어요.<br>첫 번째 장면을 직접 남겨보세요.' : '찾는 조건에 맞는 엽서가 없어요.<br>다른 검색어 또는 필터를 이용해 보세요.'}</p>
-      ${isEmpty ? '<button type="button" data-empty-create>첫 엽서 만들기 ↗</button>' : '<button type="button" data-clear-filter>필터 초기화 ↗</button>'}</div>`;
-      grid.querySelector('[data-empty-create]')?.addEventListener('click',()=>openStudio());
-      grid.querySelector('[data-clear-filter]')?.addEventListener('click',()=>{
-        filter='all';byId('archiveSearch').value='';syncFilter();renderArchive();
+      usedNames.add(filename.toLowerCase());
+      const name=encoder.encode(filename);
+      const bytes=new Uint8Array(await item.result.arrayBuffer());
+      const size=bytes.byteLength;
+      const crc=crc32(bytes);
+      if(offset+size>=0xFFFFFFFF) throw new Error('ZIP 용량이 너무 커요. 사진을 나눠서 저장해 주세요.');
+      const local=makeHeader(30+name.length,(v,buffer)=>{
+        v.setUint32(0,0x04034b50,true);
+        v.setUint16(4,20,true);v.setUint16(6,0x0800,true);v.setUint16(8,0,true);
+        v.setUint16(10,stamp.time,true);v.setUint16(12,stamp.date,true);
+        v.setUint32(14,crc,true);v.setUint32(18,size,true);v.setUint32(22,size,true);
+        v.setUint16(26,name.length,true);v.setUint16(28,0,true);
+        buffer.set(name,30);
       });
-      return;
+      parts.push(local,bytes);
+      const currentOffset=offset;
+      offset += local.length+size;
+      const central=makeHeader(46+name.length,(v,buffer)=>{
+        v.setUint32(0,0x02014b50,true);
+        v.setUint16(4,20,true);v.setUint16(6,20,true);v.setUint16(8,0x0800,true);
+        v.setUint16(10,0,true);v.setUint16(12,stamp.time,true);v.setUint16(14,stamp.date,true);
+        v.setUint32(16,crc,true);v.setUint32(20,size,true);v.setUint32(24,size,true);
+        v.setUint16(28,name.length,true);v.setUint16(30,0,true);v.setUint16(32,0,true);
+        v.setUint16(34,0,true);v.setUint16(36,0,true);v.setUint32(38,0,true);
+        v.setUint32(42,currentOffset,true);
+        buffer.set(name,46);
+      });
+      directory.push(central);
+      directorySize+=central.length;
     }
-    grid.innerHTML=items.map(p=>{
-      let cover=p.preview || p.customImage || photoFor(p);
-      return `<article class="archive-card">
-        <button type="button" class="archive-image-btn" data-edit="${escapes(p.id)}" aria-label="${escapes(p.title)} 엽서 편집">
-          <img src="${escapes(cover)}" alt="${escapes(p.title)} 엽서" loading="lazy"></button>
-        <div class="archive-card-info"><div><h3>${escapes(p.title)}</h3><p>${escapes((p.place||'SOMEWHERE')+' / '+niceDate(p.date))}</p></div>
-          <div class="archive-card-actions"><button type="button" data-favorite="${escapes(p.id)}" class="${p.favorite?'faved':''}" aria-label="${p.favorite?'즐겨찾기 해제':'즐겨찾기에 추가'}" title="즐겨찾기">${p.favorite?'♥':'♡'}</button>
-          <button type="button" data-remove="${escapes(p.id)}" aria-label="엽서 삭제" title="삭제">×</button></div>
-        </div></article>`;
-    }).join('');
-  }
-  function syncFilter() {
-    $$('.archive-tab').forEach(b=>{
-      const active=b.dataset.filter===filter;
-      b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));
+    parts.push(...directory);
+    const end=makeHeader(22,v=>{
+      v.setUint32(0,0x06054b50,true);
+      v.setUint16(4,0,true);v.setUint16(6,0,true);
+      v.setUint16(8,rows.length,true);v.setUint16(10,rows.length,true);
+      v.setUint32(12,directorySize,true);v.setUint32(16,offset,true);
+      v.setUint16(20,0,true);
     });
+    parts.push(end);
+    return new Blob(parts,{type:'application/zip'});
   }
-  async function handleArchiveClick(event) {
-    const btn=event.target.closest('[data-edit],[data-favorite],[data-remove]');
-    if(!btn) return;
-    const id=btn.dataset.edit||btn.dataset.favorite||btn.dataset.remove;
-    const card=postcards.find(p=>p.id===id);
-    if(!card)return;
-    if(btn.hasAttribute('data-edit')) {
-      openStudio(null,card);
-    } else if(btn.hasAttribute('data-favorite')) {
-      card.favorite=!card.favorite;card.updatedAt=new Date().toISOString();
-      try{await persistCard(card);await fetchCards();}
-      catch{notify('즐겨찾기를 저장하지 못했어요.');}
-    } else {
-      const accepted=await ask('이 엽서를 지울까요?', '삭제한 엽서는 다시 되돌릴 수 없어요.', '엽서 삭제');
-      if(!accepted)return;
-      try {await removeCard(id);await fetchCards();notify('엽서를 보관함에서 삭제했어요.');}
-      catch {notify('삭제하지 못했어요. 다시 시도해 주세요.');}
+
+  async function downloadAll() {
+    const rows=stored.filter(item=>item.status==='ready');
+    if(!rows.length)return;
+    const button=$('downloadAll');
+    button.disabled=true;
+    button.textContent='ZIP 파일을 만드는 중...';
+    try {
+      const zip=await makeZip(rows);
+      const d=new Date();
+      const name='press-images-'+[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')+'.zip';
+      downloadBlob(zip,name);
+      toast(rows.length+'장의 사진을 ZIP 파일로 저장했어요.');
+    } catch(error) {
+      toast(String(error?.message||'ZIP 파일을 만들지 못했어요.'));
+    } finally {
+      button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 17v4h16v-4"/></svg> 전체 ZIP 저장 <span>↗</span>';
+      render();
     }
   }
 
-  function jumpArchive() {
-    byId('archive').scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
-    byId('archiveSearch').focus({preventScroll:true});
+  function comparePosition() {
+    const value=Number($('compareRange').value);
+    $('compareAfter').style.clipPath='inset(0 0 0 '+value+'%)';
+    $('compareDivider').style.left=value+'%';
+  }
+  function openCompare(item) {
+    if(item?.status!=='ready')return;
+    priorFocus=document.activeElement;
+    compareItemId=item.id;
+    $('compareBefore').src=item.originalUrl;
+    $('compareAfter').src=item.outputUrl;
+    $('compareTitle').textContent=item.file.name;
+    $('compareStats').textContent=sizeText(item.file.size)+' → '+sizeText(item.result.size)+
+      ' · '+item.outputWidth+' × '+item.outputHeight+'px · '+item.outputType.replace('image/','').toUpperCase();
+    $('compareRange').value='50';
+    comparePosition();
+    $('compareBackdrop').hidden=false;
+    $('closeCompare').focus();
+  }
+  function closeCompare() {
+    $('compareBackdrop').hidden=true;
+    compareItemId=null;
+    $('compareBefore').removeAttribute('src');
+    $('compareAfter').removeAttribute('src');
+    if(priorFocus?.focus)priorFocus.focus({preventScroll:true});
+  }
+
+  function clearAll() {
+    epoch++;
+    clearTimeout(runDelay);
+    for(const item of stored) clearItem(item);
+    stored.length=0;
+    if(!$('compareBackdrop').hidden)closeCompare();
+    render();
+    $('fileInput').value='';
+    toast('목록을 비웠어요. 저장된 파일에는 영향이 없어요.');
+  }
+
+  function handleListAction(event) {
+    const button=event.target.closest('[data-remove],[data-download],[data-compare]');
+    if(!button)return;
+    const id=button.dataset.remove||button.dataset.download||button.dataset.compare;
+    const item=stored.find(row=>row.id===id);
+    if(!item)return;
+    if(button.hasAttribute('data-remove')) {
+      const index=stored.indexOf(item);
+      stored.splice(index,1);
+      clearItem(item);
+      if(compareItemId===id)closeCompare();
+      render();
+    } else if(button.hasAttribute('data-download')) singleDownload(item);
+    else openCompare(item);
   }
 
   function bind() {
-    $$('[data-open-studio]').forEach(b=>b.addEventListener('click',()=>openStudio()));
-    byId('navArchive').addEventListener('click',jumpArchive);
-    $('[data-mobile-archive]').addEventListener('click',jumpArchive);
-    byId('mobileAbout').addEventListener('click',()=>byId('howItWorks').scrollIntoView({behavior:'smooth'}));
-    byId('closeStudio').addEventListener('click',closeStudio);
-    byId('fileInput').addEventListener('change',handleUpload);
-    for(const [id,key] of [['titleInput','title'],['placeInput','place'],['dateInput','date'],['messageInput','message']]) {
-      byId(id).addEventListener('input',event=>{
-        draft[key]=event.target.value;
-        if(key==='message')byId('charCount').textContent=draft.message.length+' / 240';
-        markDirty();requestPreview();
+    const input=$('fileInput');
+    for(const id of ['chooseFiles','addMore','bottomChoose']) {
+      $(id).addEventListener('click',()=>input.click());
+    }
+    input.addEventListener('change',event=>{
+      const selected=Array.from(event.target.files||[]);
+      event.target.value='';
+      void acceptFiles(selected);
+    });
+    const drop=$('uploadSection');
+    for(const type of ['dragenter','dragover']) {
+      drop.addEventListener(type,event=>{
+        event.preventDefault();
+        if(event.dataTransfer) event.dataTransfer.dropEffect='copy';
+        drop.classList.add('dragover');
       });
     }
-    byId('imageZoom').addEventListener('input',event=>{
-      draft.zoom=Number(event.target.value);byId('zoomValue').textContent=draft.zoom+'%';
-      markDirty();requestPreview();
+    drop.addEventListener('dragleave',event=>{
+      if(!drop.contains(event.relatedTarget)) drop.classList.remove('dragover');
     });
-    $$('#templatePicker [data-template]').forEach(btn=>btn.addEventListener('click',()=>{
-      draft.template=btn.dataset.template;syncInputs();markDirty();renderCard();
-    }));
-    $$('[data-orientation]').forEach(btn=>btn.addEventListener('click',()=>{
-      draft.orientation=btn.dataset.orientation;syncInputs();markDirty();renderCard();
-    }));
-    $$('[data-face]').forEach(btn=>btn.addEventListener('click',()=>{
-      currentFace=btn.dataset.face;syncInputs();renderCard();
-    }));
-    $$('[data-mobile-view]').forEach(btn=>btn.addEventListener('click',()=>{
-      mobileView=btn.dataset.mobileView;updateMobileView();
-    }));
-    byId('savePostcard').addEventListener('click',saveCurrent);
-    byId('downloadPostcard').addEventListener('click',downloadCurrent);
-    byId('sharePostcard').addEventListener('click',shareCurrent);
-    byId('archiveGrid').addEventListener('click',handleArchiveClick);
-    byId('archiveSearch').addEventListener('input',renderArchive);
-    $$('.archive-tab').forEach(btn=>btn.addEventListener('click',()=>{
-      filter=btn.dataset.filter;syncFilter();renderArchive();
-    }));
-    byId('cancelConfirm').addEventListener('click',()=>answerDialog(false));
-    byId('acceptConfirm').addEventListener('click',()=>answerDialog(true));
-
+    drop.addEventListener('drop',event=>{
+      event.preventDefault();
+      drop.classList.remove('dragover');
+      void acceptFiles(event.dataTransfer?.files);
+    });
+    window.addEventListener('dragover',event=>{
+      if(Array.from(event.dataTransfer?.types||[]).includes('Files')) event.preventDefault();
+    });
+    window.addEventListener('drop',event=>{
+      if(Array.from(event.dataTransfer?.types||[]).includes('Files')) event.preventDefault();
+    });
+    document.addEventListener('paste',event=>{
+      if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;
+      const files=Array.from(event.clipboardData?.files||[]);
+      if(files.length){event.preventDefault();void acceptFiles(files);}
+    });
+    $('fileList').addEventListener('click',handleListAction);
+    $('downloadAll').addEventListener('click',()=>void downloadAll());
+    $('clearAll').addEventListener('click',clearAll);
+    $('formatSelect').addEventListener('change',event=>{config.format=event.target.value;changeSettings();});
+    $('sizeSelect').addEventListener('change',event=>{config.size=Number(event.target.value);changeSettings();});
+    $('qualityRange').addEventListener('input',event=>{
+      config.quality=Number(event.target.value);
+      $('qualityText').textContent=config.quality+'%';
+      clearTimeout(runDelay);
+      runDelay=setTimeout(changeSettings,380);
+    });
+    $('resetSettings').addEventListener('click',()=>{
+      config.format='auto';config.size=2560;config.quality=82;
+      syncSettings();changeSettings();toast('기본 설정으로 돌아왔어요.');
+    });
+    $('closeCompare').addEventListener('click',closeCompare);
+    $('compareBackdrop').addEventListener('click',event=>{
+      if(event.target===$('compareBackdrop'))closeCompare();
+    });
+    $('compareRange').addEventListener('input',comparePosition);
+    $('compareDownload').addEventListener('click',()=>{
+      const item=stored.find(row=>row.id===compareItemId);
+      if(item)singleDownload(item);
+    });
     document.addEventListener('keydown',event=>{
-      if(event.key==='Escape'){
-        if(!byId('confirmDialog').hidden){event.preventDefault();answerDialog(false);}
-        else if(!byId('studio').hidden){event.preventDefault();closeStudio();}
-        return;
-      }
-      if(!byId('studio').hidden) {
-        if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s') {
-          event.preventDefault();saveCurrent();
+      if(event.key==='Escape'&&!$('compareBackdrop').hidden){event.preventDefault();closeCompare();}
+      if(event.key==='Tab'&&!$('compareBackdrop').hidden){
+        const controls=[$('closeCompare'),$('compareRange'),$('compareDownload')];
+        const at=controls.indexOf(document.activeElement);
+        if(at>=0) {
+          const next=at+(event.shiftKey?-1:1);
+          if(next<0||next>=controls.length){event.preventDefault();controls[(next+controls.length)%controls.length].focus();}
         }
-        if(event.key==='Tab'&&!byId('confirmDialog').hidden) {
-          const items=[byId('cancelConfirm'),byId('acceptConfirm')];
-          const current=items.indexOf(document.activeElement);
-          if(current!==-1){event.preventDefault();items[(current+(event.shiftKey?-1:1)+items.length)%items.length].focus();}
-        }
-      }else if(!['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)&&event.key.toLowerCase()==='c'&&!event.ctrlKey&&!event.metaKey){
-        openStudio();
       }
     });
-    window.addEventListener('beforeunload',event=>{
-      if(!byId('studio').hidden&&signature(draft)!==originalSignature){
-        event.preventDefault();event.returnValue='';
-      }
-    });
-    const observer=new IntersectionObserver(entries=>{
-      entries.forEach(entry=>{
-        if(!entry.isIntersecting)return;
-        const target=entry.target.id==='collection'?'collection':'discover';
-        $$('.nav-link[data-nav]').forEach(link=>link.classList.toggle('active',link.dataset.nav===target));
-        $$('.mobile-nav-link[data-mobile-target]').forEach(link=>link.classList.toggle('active',link.dataset.mobileTarget===target));
-      });
-    },{rootMargin:'-20% 0px -65% 0px'});
-    [byId('discover'),byId('collection')].forEach(node=>observer.observe(node));
+    window.addEventListener('pagehide',()=>{for(const item of stored)clearItem(item);});
   }
 
   function init() {
-    makeGallery();bind();syncFilter();fetchCards();
-    if('serviceWorker'in navigator && (location.protocol==='https:'||location.hostname==='localhost')){
+    syncSettings();
+    bind();
+    render();
+    if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
       window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
     }
   }
