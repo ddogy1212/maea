@@ -34,6 +34,9 @@ jobs:
           node --check ahead/app.js
           node --check ahead/sw.js
           node ahead/smoke.test.cjs
+          node --check kin/app.js
+          node --check kin/sw.js
+          node kin/smoke.test.cjs
           test -f index.html
           test -f styles.css
           test -f manifest.webmanifest
