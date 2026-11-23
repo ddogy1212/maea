@@ -1,114 +1,119 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f5f4ee">
-  <meta name="description" content="PRESS. 사진을 한 번에 가볍게. JPG·PNG·WEBP 변환, 용량 압축, 사진 크기 조절, 여러 장 ZIP 저장. 파일은 기기 밖으로 나가지 않아요.">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="PRESS. — 가볍게 만들어, 자유롭게 보내세요.">
-  <meta property="og:description" content="사진을 놓으면 바로 압축. 여러 장도 한 번에. 가입도 서버 업로드도 없는 개인 이미지 도구.">
-  <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://images.unsplash.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css">
-  <script defer src="./app.js"></script>
-  <title>PRESS. — Image Utility</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f1e9">
+<meta name="description" content="ELSEWHERE — 사진 한 장으로 마음을 담은 엽서를 만들어요. 바로 저장하고 공유하는 나만의 포스트카드 아틀리에.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ELSEWHERE — 사진 한 장, 마음 한 장">
+<meta property="og:description" content="사진만 고르면 완성되는 나만의 엽서. 한 번에 저장하고 공유하세요.">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+<script defer src="./app.js"></script>
+<title>ELSEWHERE — The Postcard Atelier</title>
 </head>
 <body>
-  <a class="skip" href="#uploadSection">파일 선택으로 건너뛰기</a>
-  <div class="shell">
-    <header class="site-header">
-      <a class="wordmark" href="./" aria-label="PRESS. 홈">press<span>.</span></a>
-      <div class="header-middle"><span class="header-rule"></span><span>THE SMALL IMAGE WORKSHOP</span></div>
-      <div class="header-right"><span class="privacy-live"><span class="live-dot"></span> PRIVATE BY DESIGN</span><a class="maea-link" href="../">MAEA로 돌아가기 <span>↗</span></a></div>
-    </header>
-    <main id="main">
-      <section class="intro" aria-labelledby="mainTitle">
-        <div class="intro-left">
-          <p class="eyebrow"><span class="asterisk">✳</span> YOUR IMAGES, A LITTLE LIGHTER <span class="eyebrow-counter">VOL. 01 / PRESS</span></p>
-          <h1 id="mainTitle">사진은 가볍게.<br><em>보내기는 쉽게.</em></h1>
-          <p class="intro-lead">용량이 커서 보내기 어려웠던 사진들.<br>여기 올려두면 알아서 줄여줄게요. 여러 장도 한 번에.</p>
-          <div class="intro-facts"><span><span class="fact-check">✓</span> 가입 없음</span><span><span class="fact-check">✓</span> 파일 서버 업로드 없음</span><span><span class="fact-check">✓</span> 무료</span></div>
-          <section class="drop-area" id="uploadSection" aria-labelledby="dropTitle">
-            <input type="file" class="visually-hidden" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple aria-describedby="dropHelp">
-            <div class="drop-text">
-              <span class="drop-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V3M7 8l5-5 5 5M4 16v4h16v-4"/></svg></span>
-              <div>
-                <h2 id="dropTitle">사진을 여기에 놓으세요<span>.</span></h2>
-                <p id="dropHelp">혹은 아래 버튼으로 선택하세요 · JPG, PNG, WEBP</p>
-              </div>
-            </div>
-            <button type="button" id="chooseFiles" class="upload-button">사진 선택하기 <span aria-hidden="true">↗</span></button>
-            <span class="drop-footnote">한 번에 최대 30장 · 장당 35MB</span>
-          </section>
-          <p class="privacy-note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> 사진은 이 브라우저에서만 처리합니다. 업로드 서버가 없어요.</p>
-        </div>
-        <div class="intro-photo" aria-label="사진 작업을 위한 영감 이미지">
-          <img src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1300&q=86" alt="안개 속 산과 호수 풍경 사진" fetchpriority="high">
-          <span class="photo-top">AN IMAGE IS A MEMORY.</span>
-          <div class="photo-caption"><span>GOOD THINGS<br>DON'T NEED TO<br>TAKE UP SPACE.</span><span>✳</span></div>
-          <span class="photo-edge">A LITTLE LESS WEIGHT. A LOT MORE ROOM.</span>
-        </div>
-      </section>
+<a class="skip" href="#create">엽서 만들기로 건너뛰기</a>
+<div class="site">
+  <header class="header">
+    <a class="brand" href="./" aria-label="ELSEWHERE 메인">elsewhere<span>.</span></a>
+    <div class="header-note"><span class="header-rule"></span>THE EVERYDAY POSTCARD ATELIER <span class="header-rule"></span> ISSUE N° 01</div>
+    <div class="header-actions">
+      <button type="button" id="openArchive" class="archive-link">내 엽서함 <span id="archiveCount">0</span> <span aria-hidden="true">↗</span></button>
+    </div>
+  </header>
 
-      <section id="resultsSection" class="results" hidden aria-labelledby="resultsHeading">
-        <div class="section-top"><div><span class="kicker">01 / YOUR BATCH</span><h2 id="resultsHeading">All ready to <em>go.</em></h2></div><button type="button" class="quiet-link" id="addMore">＋ 사진 더 추가</button></div>
-        <div class="results-summary">
-          <div class="summary-primary"><span>절약한 공간</span><strong id="savedPercent">—</strong><span class="summary-foot">원본과 변환 결과의 합계 비교</span></div>
-          <div class="summary-secondary"><div><span>원본</span><strong id="totalBefore">—</strong></div><span class="summary-chevron">→</span><div><span>변환 후</span><strong id="totalAfter">—</strong></div></div>
-          <div class="batch-actions"><button type="button" class="download-all" id="downloadAll" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 17v4h16v-4"/></svg> 전체 ZIP 저장 <span>↗</span></button><span>파일은 다운로드 전까지 이 탭에만 머물러요.</span></div>
-        </div>
-        <div class="list-head"><span id="listCount">FILES / 0</span><div><span id="progressText" role="status">준비 중...</span><button id="clearAll" type="button">전체 비우기 ✕</button></div></div>
-        <div class="file-list" id="fileList" aria-live="polite"></div>
-        <div class="settings-section">
-          <details id="advanced">
-            <summary><span>⚙</span><strong>압축 설정</strong><small>원하면 바꿀 수 있어요. 기본값 그대로 써도 충분해요.</small><span class="settings-arrow">⌄</span></summary>
-            <div class="settings-grid">
-              <label class="setting"><span class="setting-title">출력 형식</span><span class="setting-help">자동은 사진 종류에 맞게 선택</span>
-                <select id="formatSelect"><option value="auto">자동 추천</option><option value="jpeg">JPG · 호환성 우선</option><option value="webp">WEBP · 용량 우선</option><option value="png">PNG · 무손실</option></select>
-              </label>
-              <label class="setting"><span class="setting-title">최대 이미지 크기</span><span class="setting-help">원본보다 작은 경우에만 줄여요</span>
-                <select id="sizeSelect"><option value="2560">2560px · 권장</option><option value="1600">1600px · 더 작게</option><option value="1080">1080px · 공유용</option><option value="0">원본 크기 유지</option></select>
-              </label>
-              <label class="setting quality-setting"><span class="setting-title">압축 강도 <span id="qualityText">82%</span></span><span class="setting-help">값이 높을수록 선명하지만 파일이 커져요</span>
-                <input id="qualityRange" type="range" min="50" max="95" value="82" step="1">
-              </label>
-            </div>
-            <div class="settings-bottom"><span>설정을 바꾸면 사진을 자동으로 다시 처리해요. PNG는 품질 수치가 적용되지 않아요.</span><button id="resetSettings" type="button">기본 설정 복원 ↗</button></div>
-          </details>
-        </div>
-      </section>
-
-      <section class="benefits" id="why">
-        <div class="section-top benefits-title"><div><span class="kicker">02 / NO COMPLICATIONS</span><h2>Less fuss. <em>More life.</em></h2></div><p>복잡한 계정과 설정은 뒤로. 사진을 넣으면 바로 결과가 나오는 경험만 남겼어요.</p></div>
-        <div class="benefits-grid">
-          <div class="benefit"><span class="benefit-index">01 / JUST DROP</span><h3>올려두기만 하세요.</h3><p>사진 여러 장을 한 번에 선택하면 자동으로 변환돼요. 별도의 시작 버튼도 필요 없어요.</p></div>
-          <div class="benefit"><span class="benefit-index">02 / KEEP IT YOURS</span><h3>사진은 내 기기에만.</h3><p>이미지가 외부 서버로 전송되지 않아요. 브라우저 안에서 압축하고 직접 다운로드합니다.</p></div>
-          <div class="benefit"><span class="benefit-index">03 / ONE NEAT ZIP</span><h3>받을 때도 간단하게.</h3><p>한 장씩 저장하거나 모든 결과를 ZIP 하나로 묶어 받을 수 있어요.</p></div>
-        </div>
-      </section>
-      <section class="final-cta"><div><span class="kicker">IT'S THAT SIMPLE.</span><h2>Make a little <em>room.</em></h2></div><button type="button" id="bottomChoose">사진 가볍게 만들기 <span>↗</span></button></section>
-    </main>
-    <footer><div><span class="footer-logo">press<span>.</span></span><span>AN EVERYDAY IMAGE TOOL</span></div><span>© 2026 PRESS. / BUILT FOR USEFUL THINGS.</span><a href="../">BACK TO MAEA ↗</a></footer>
-  </div>
-
-  <div class="compare-backdrop" id="compareBackdrop" hidden>
-    <section class="compare-sheet" role="dialog" aria-modal="true" aria-labelledby="compareTitle">
-      <div class="compare-header"><div><span class="kicker">BEFORE / AFTER</span><h2 id="compareTitle">결과 비교</h2></div><button type="button" id="closeCompare" class="compare-close" aria-label="닫기">✕</button></div>
-      <div class="compare-stage" id="compareStage">
-        <img id="compareBefore" src="" alt="원본 이미지">
-        <img id="compareAfter" src="" alt="변환된 이미지">
-        <div class="compare-divider" id="compareDivider"><span>↔</span></div>
-        <span class="compare-label left">원본</span><span class="compare-label right">변환 후</span>
-        <label class="visually-hidden" for="compareRange">비교 위치</label><input id="compareRange" type="range" min="0" max="100" value="50" aria-label="전후 비교 슬라이더">
+  <main id="create" class="workspace" aria-labelledby="pageTitle">
+    <div class="heading">
+      <div class="eyebrow"><span aria-hidden="true">✳</span> MADE FOR THE MOMENTS THAT STAY <span class="eyebrow-index">001 / THE ATELIER</span></div>
+      <h1 id="pageTitle">사진 한 장,<br><em>마음 한 장.</em></h1>
+      <p class="intro-copy">오늘의 풍경을 오래 남기고 싶을 때.<br>사진을 고르면, 나만의 엽서가 바로 완성돼요.</p>
+      <div class="trust-strip"><span><i>✓</i> 10초면 완성</span><span><i>✓</i> 회원가입 없음</span><span><i>✓</i> 내 사진은 기기 안에</span></div>
+      <div class="upload-frame" id="dropArea">
+        <label for="photoInput" class="upload-btn" id="uploadLabel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3M7 8l5-5 5 5M4 16v4h16v-4"/></svg><span id="uploadLabelText">내 사진으로 바로 만들기</span><span aria-hidden="true">↗</span></label>
+        <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only">
+        <span class="upload-hint">JPG · PNG · WEBP / 20MB 이하</span>
       </div>
-      <div class="compare-bottom"><p id="compareStats">사진 준비 중</p><button type="button" id="compareDownload">이 사진 저장하기 ↗</button></div>
+    </div>
+
+    <section class="preview" aria-labelledby="previewTitle">
+      <div class="preview-heading"><span id="previewTitle">LIVE POSTCARD / 01</span><span id="previewBadge">DEMO — 사진을 골라보세요</span></div>
+      <div class="preview-stage">
+        <div class="preview-scene">
+          <canvas id="postcardCanvas" width="1600" height="1200" role="img" aria-label="엽서 실시간 미리보기">사진 엽서 미리보기</canvas>
+          <span class="canvas-wait" id="canvasWait" hidden>사진을 불러오는 중...</span>
+        </div>
+        <span class="preview-sidenote" aria-hidden="true">AN ORDINARY MOMENT, KEPT FOREVER.</span>
+      </div>
+      <div class="preview-bottom">
+        <span class="preview-bottom-note"><span class="preview-dot"></span><span id="previewStatus" role="status" aria-live="polite">샘플 엽서 미리보기</span></span>
+        <button class="style-next" id="nextStyle" type="button">디자인 바꾸기 <span aria-hidden="true">↻</span></button>
+      </div>
     </section>
+
+    <section class="quick-edit" aria-label="엽서 내용 간단 편집">
+      <div class="edit-intro"><span class="index">01 / THE FEELING</span><h2>오늘은 어떤 <em>마음인가요?</em></h2><p>한 번만 눌러도 문구가 자동으로 바뀌어요.</p></div>
+      <div class="mood-list" id="moodList" role="group" aria-label="엽서 분위기 선택">
+        <button type="button" data-mood="memory" class="mood active" aria-pressed="true"><span class="mood-symbol">✳</span><span>추억</span></button>
+        <button type="button" data-mood="travel" class="mood" aria-pressed="false"><span class="mood-symbol">↗</span><span>여행</span></button>
+        <button type="button" data-mood="celebrate" class="mood" aria-pressed="false"><span class="mood-symbol">✦</span><span>축하</span></button>
+        <button type="button" data-mood="cheer" class="mood" aria-pressed="false"><span class="mood-symbol">♡</span><span>응원</span></button>
+      </div>
+      <details class="edit-details" id="editDetails">
+        <summary><span>문구 직접 다듬기 <small>선택사항</small></span><span class="detail-caret">↘</span></summary>
+        <div class="edit-fields">
+          <label for="titleInput"><span>제목</span><span class="counter" id="titleCounter">0 / 38</span></label>
+          <input id="titleInput" type="text" maxlength="38" placeholder="그날의 우리" autocomplete="off">
+          <label for="noteInput"><span>짧은 메시지</span><span class="counter" id="noteCounter">0 / 90</span></label>
+          <textarea id="noteInput" maxlength="90" rows="3" placeholder="언젠가 다시 꺼내 볼 마음을 적어요."></textarea>
+          <label for="placeInput"><span>장소 <small>선택사항</small></span></label>
+          <input id="placeInput" type="text" maxlength="46" placeholder="그날 우리가 있었던 곳" autocomplete="off">
+          <button class="suggest-text" id="suggestText" type="button">다른 문구 추천 <span>↻</span></button>
+        </div>
+      </details>
+    </section>
+
+    <section class="export" aria-label="완성한 엽서 사용하기">
+      <div class="export-head"><span class="index">02 / KEEP THE MOMENT</span><span id="exportDimensions">1600 × 1200 PX · PNG</span></div>
+      <div class="export-actions">
+        <button type="button" id="shareBtn" class="share-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.85-4M18 8l-12 4m12 4-12-4M18 16a3 3 0 1 1-2.85 4M6 12a3 3 0 1 1-2.85-4"/></svg> 바로 공유하기 <span aria-hidden="true">↗</span></button>
+        <button type="button" id="downloadBtn" class="download-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 17v4h16v-4"/></svg> 이미지 저장 <span aria-hidden="true">↓</span></button>
+      </div>
+      <div class="export-foot"><button type="button" id="saveArchiveBtn">♡ 이 엽서를 내 보관함에 담기</button><span>사진은 서버에 전송되지 않아요.</span></div>
+    </section>
+  </main>
+
+  <section class="gallery" aria-labelledby="galleryHeading">
+    <div class="gallery-heading"><div><span class="index">03 / WHEN YOU NEED A LITTLE INSPIRATION</span><h2 id="galleryHeading">Every place has <em>a story.</em></h2></div><span class="gallery-side">DISCOVER A DIFFERENT SCENE ↘</span></div>
+    <div class="gallery-grid" id="sceneGallery"></div>
+  </section>
+
+  <section class="closing">
+    <div><span class="index">THINGS WORTH REMEMBERING</span><p>The days are long,<br>but the moments are <em>ours.</em></p></div>
+    <button type="button" class="back-to-top" id="newPostcard">새 엽서 만들기 <span>↗</span></button>
+  </section>
+  <footer class="footer"><a class="footer-logo" href="./">elsewhere<span>.</span></a><span>A LITTLE STUDIO FOR THE BIG FEELINGS.</span><a href="https://unsplash.com/license" target="_blank" rel="noopener noreferrer">SCENES VIA UNSPLASH ↗</a></footer>
+</div>
+
+<div id="archiveOverlay" class="archive-overlay" hidden>
+  <div class="archive-mask" id="archiveMask"></div>
+  <aside class="archive-drawer" role="dialog" aria-modal="true" aria-labelledby="archiveHeading">
+    <div class="drawer-header"><div><span class="index">YOUR LITTLE COLLECTION / SAVED ON THIS DEVICE</span><h2 id="archiveHeading">남겨둔 <em>순간들.</em></h2></div><button type="button" id="closeArchive" class="drawer-close" aria-label="엽서함 닫기">✕</button></div>
+    <p class="drawer-help">이 브라우저에 저장한 엽서예요. 다른 기기와 동기화되지 않으니 오래 간직하고 싶은 건 이미지로도 저장해 주세요.</p>
+    <div id="archiveItems" class="archive-items"></div>
+  </aside>
+</div>
+
+<div class="confirm-layer" id="confirmLayer" hidden>
+  <div class="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirmHeading" aria-describedby="confirmDescription">
+    <span class="index">ONE LITTLE QUESTION</span><h2 id="confirmHeading">삭제할까요?</h2><p id="confirmDescription">보관함에서 삭제하면 되돌릴 수 없어요.</p><div><button type="button" id="cancelConfirm">취소</button><button type="button" id="acceptConfirm">삭제하기</button></div>
   </div>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-</body>
-</html>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body></html>
