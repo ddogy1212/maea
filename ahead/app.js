@@ -652,10 +652,16 @@
     }
     const candidate=parsed.tasks.slice(0,MAX_TASKS).map(normalizeTask).filter(Boolean);
     const ids=new Set(data.tasks.map(task=>task.id));
-    const fresh=candidate.filter(task=>!ids.has(task.id)).slice(0,Math.max(0,MAX_TASKS-data.tasks.length));
+    const fresh=candidate.filter(task=>{
+      if(ids.has(task.id))return false;
+      ids.add(task.id);return true;
+    }).slice(0,Math.max(0,MAX_TASKS-data.tasks.length));
     const sessionIds=new Set(data.sessions.map(session=>session.id));
     const importedSessions=Array.isArray(parsed.sessions)
-      ?parsed.sessions.slice(-600).map(normalizeSession).filter(Boolean).filter(s=>!sessionIds.has(s.id))
+      ?parsed.sessions.slice(-600).map(normalizeSession).filter(Boolean).filter(session=>{
+        if(sessionIds.has(session.id))return false;
+        sessionIds.add(session.id);return true;
+      })
       :[];
     const hasFocus=[1500,2700,3600].includes(parsed.focusSettings?.totalSec);
     if(!fresh.length&&!importedSessions.length&&!hasFocus){
