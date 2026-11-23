@@ -46,8 +46,8 @@ A Pages workflow is provided at `.github/workflows/pages.yml`. If the first run 
 
 Designed as an immersive tool, not a collage of geometric illustrations. Crafted for mobile and desktop.
 
-## Companion tool: PRESS. Image Workshop
+## Companion experience: ELSEWHERE — The Postcard Atelier
 
-**[PRESS. — 가볍게 만드는 이미지 도구](./elsewhere/)** lives under `elsewhere/`, where the earlier postcard concept was replaced after usability feedback. It is now a fast everyday utility: add images and get automatic client-side compression, optional format and resolution settings, real before/after comparison, individual download and batch ZIP export. The original MAEA focus environment at the repository root is unchanged. The old postcard application remains in Git history.
+**[ELSEWHERE](./elsewhere/)** brings back the original photo-and-postcard concept with a **much simpler workflow**: select a photo and immediately receive a finished, photo-led postcard; optionally choose its mood or design, then share the image or download the PNG. There is also an optional private browser archive for saving and reopening postcards. It is now designed for real mobile use, not a multi-step editor.
 
-When Pages is successfully deployed, the companion tool should be available at `https://ddogy1212.github.io/maea/elsewhere/`.
+The original **MAEA focus environment** remains at the repository root. Older versions of ELSEWHERE and PRESS remain in Git history. If GitHub Pages is enabled and deployed successfully, the companion URL is `https://ddogy1212.github.io/maea/elsewhere/`.
