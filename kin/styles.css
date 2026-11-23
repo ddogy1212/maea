@@ -265,3 +265,5 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
  .tag-type strong{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+.qr-actions{display:flex;gap:13px;align-items:center;justify-content:flex-end}.qr-actions button:hover{color:#38543d}
