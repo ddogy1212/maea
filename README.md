@@ -51,3 +51,10 @@ Designed as an immersive tool, not a collage of geometric illustrations. Crafted
 **[ELSEWHERE](./elsewhere/)** brings back the original photo-and-postcard concept with a **much simpler workflow**: select a photo and immediately receive a finished, photo-led postcard; optionally choose its mood or design, then share the image or download the PNG. There is also an optional private browser archive for saving and reopening postcards. It is now designed for real mobile use, not a multi-step editor.
 
 The original **MAEA focus environment** remains at the repository root. Older versions of ELSEWHERE and PRESS remain in Git history. If GitHub Pages is enabled and deployed successfully, the companion URL is `https://ddogy1212.github.io/maea/elsewhere/`.
+
+
+## Daily productivity tool: AHEAD — Your Everyday Workbench
+
+**[AHEAD](./ahead/)** is a separate, practical task and deadline dashboard built in response to feedback that the previous creative apps weren't productive enough. Paste one or many lines of work, review detected Korean dates and times, sort today's and future deadlines, mark tasks complete, run a task-linked focus timer, and export either a complete JSON backup or an iCalendar (ICS) deadline list. Designed to be understandable in seconds, not a multi-step editor.
+
+AHEAD works without a backend or account and stores its data in the current browser; export a backup before switching devices. The existing MAEA and ELSEWHERE apps remain unchanged. If GitHub Pages has been successfully enabled and published, the intended app URL is `https://ddogy1212.github.io/maea/ahead/`.
