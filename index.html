@@ -109,6 +109,17 @@
     <section class="finish-card" role="dialog" aria-modal="true" aria-labelledby="finishTitle"><span class="finish-stars">✦ &nbsp; ✳ &nbsp; ✦</span><span class="section-kicker">A MOMENT, WELL SPENT</span><h2 id="finishTitle">You showed <em>up.</em></h2><p id="finishBody">작은 집중 하나가 쌓였어요. 어떤 기분으로 마쳤나요?</p><div class="mood-row" role="group" aria-label="기분 선택"><button type="button" data-mood="맑음" aria-pressed="false">☀️ <span>맑음</span></button><button type="button" data-mood="평온" aria-pressed="false">🍃 <span>평온</span></button><button type="button" data-mood="뿌듯" aria-pressed="false">✨ <span>뿌듯</span></button><button type="button" data-mood="지침" aria-pressed="false">🌙 <span>지침</span></button></div><label class="sr-only" for="reflectionInput">짧은 메모</label><textarea id="reflectionInput" maxlength="240" placeholder="기억하고 싶은 생각 한 줄 (선택)" rows="3"></textarea><button class="play-btn finish-save" id="finishSave" type="button">기록 저장하기 <span>↗</span></button><button class="finish-later" type="button" id="finishClose">그냥 닫기</button></section>
   </div>
   <div class="modal-backdrop" id="shortcutModal" hidden><section class="shortcut-card" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle"><div class="shortcut-heading"><h2 id="shortcutTitle">A few <em>shortcuts.</em></h2><button type="button" id="closeShortcuts" class="panel-close" aria-label="닫기">✕</button></div><div><span>타이머 시작 / 일시정지</span><kbd>Space</kbd></div><div><span>풍경 전환</span><kbd>1 — 6</kbd></div><div><span>패널 / 창 닫기</span><kbd>Esc</kbd></div><div><span>단축키 보기</span><kbd>?</kbd></div></section></div>
+  <div class="modal-backdrop" id="customModal" hidden>
+    <section class="custom-card" role="dialog" aria-modal="true" aria-labelledby="customTitle">
+      <div class="custom-top"><span class="section-kicker">SET YOUR OWN PACE</span><button id="customClose" type="button" class="panel-close" aria-label="닫기">✕</button></div>
+      <h2 id="customTitle">Your time, <em>your rules.</em></h2>
+      <p>오늘의 리듬에 딱 맞는 시간을 정해보세요.</p>
+      <form id="customForm"><label for="customMinutes">DURATION / MINUTES</label>
+        <div class="custom-input-wrap"><input id="customMinutes" type="number" min="1" max="180" step="1" required inputmode="numeric"><span>MIN</span></div>
+        <button class="play-btn custom-apply" type="submit">이 시간으로 시작하기 <span>↗</span></button>
+      </form>
+    </section>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="./app.js" defer></script>
 </body>
