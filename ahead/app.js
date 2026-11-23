@@ -223,11 +223,12 @@
   }
 
   function score(task) {
-    if(task.done)return 99999;
+    if(task.done)return Number.MAX_SAFE_INTEGER;
     const date=task.dueDate;
     const days=date?(Date.UTC(...date.split('-').map((v,i)=>i===1?Number(v)-1:Number(v)))-
       Date.UTC(...today().split('-').map((v,i)=>i===1?Number(v)-1:Number(v))))/86400000:999;
-    return Math.max(-10,days)*100+(task.priority?-40:0)+(task.today?-15:0);
+    const minute=task.dueTime?Number(task.dueTime.slice(0,2))*60+Number(task.dueTime.slice(3)):1439;
+    return Math.max(-10,days)*1440+minute+(task.priority?-200:0)+(task.today?-25:0);
   }
   const sorted=tasks=>tasks.sort((a,b)=>score(a)-score(b)||
     Number(!!b.priority)-Number(!!a.priority)||
@@ -295,11 +296,19 @@
     }
   }
 
+  function isOverdue(task){
+    if(!task.dueDate)return false;
+    if(task.dueDate<today())return true;
+    if(task.dueDate>today()||!task.dueTime)return false;
+    const now=new Date();
+    const current=now.getHours()*60+now.getMinutes();
+    return Number(task.dueTime.slice(0,2))*60+Number(task.dueTime.slice(3))<current;
+  }
   function dueLabel(task){
     if(!task.dueDate)return'마감 없음';
     const dateLabel=formatDate(task.dueDate);
     return dateLabel+(task.dueTime?' '+task.dueTime:'')+
-      (task.dueDate<today()?' · 지남':'');
+      (isOverdue(task)?' · 지남':'');
   }
   function renderList(){
     const search=$('searchInput').value.trim().toLocaleLowerCase();
@@ -320,7 +329,7 @@
     }
     node.innerHTML=tasks.map(task=>{
       const due=task.dueDate?dueLabel(task):'';
-      const dueClass=task.dueDate<today()?'due-late':
+      const dueClass=isOverdue(task)?'due-late':
         task.dueDate<=dateShift(today(),2)?'due-soon':'';
       return'<article class="task-row '+(task.done?'completed':'')+'" data-id="'+escape(task.id)+'">'+
         '<button type="button" class="task-check '+(task.done?'done':'')+'" data-check="'+escape(task.id)+'" aria-label="'+(task.done?'완료 취소':'완료 처리')+': '+escape(task.title)+'" aria-pressed="'+String(task.done)+'">'+(task.done?'✓':'✓')+'</button>'+
