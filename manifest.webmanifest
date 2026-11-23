@@ -1,0 +1,29 @@
+{
+  "name": "MAEA — 나만의 조용한 공간",
+  "short_name": "MAEA",
+  "description": "풍경과 소리가 있는 몰입 타이머. 할 일, 집중 기록, 여섯 공간.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#14231c",
+  "theme_color": "#14231c",
+  "lang": "ko",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "lifestyle"
+  ]
+}
