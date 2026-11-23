@@ -124,7 +124,7 @@
     if(!original)return null;
     const date=parseDate(original,reference);
     const time=date?parseTime(original):{value:null,raw:null};
-    const estimate=detectEstimate(original);
+    const estimate=detectEstimate(time.raw?original.replace(time.raw,' '):original);
     const important=/^(?:!+|★|긴급|중요)|\[긴급\]|\[중요\]/.test(original);
     let title=original
       .replace(/^[!★\s]+/,'')
@@ -355,8 +355,11 @@
   }
   function renderChart(){
     const days=Array.from({length:7},(_,index)=>dateShift(today(),index-6));
-    const counts=days.map(day=>data.tasks.filter(t=>t.done&&t.completedAt&&
-      t.completedAt.slice(0,10)===day).length);
+    const counts=days.map(day=>data.tasks.filter(t=>{
+      if(!t.done||!t.completedAt)return false;
+      const stamp=new Date(t.completedAt);
+      return Number.isFinite(stamp.getTime())&&dateString(stamp)===day;
+    }).length);
     const max=Math.max(1,...counts);
     $('weekChart').innerHTML=days.map((date,index)=>
       '<div class="chart-col '+(index===6?'today':'')+'"><div class="chart-bar-track">'+
