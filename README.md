@@ -45,3 +45,10 @@ A Pages workflow is provided at `.github/workflows/pages.yml`. If the first run 
 - Zero trackers, zero cookies, zero analytics, no backend.
 
 Designed as an immersive tool, not a collage of geometric illustrations. Crafted for mobile and desktop.
+
+
+## Companion experience: ELSEWHERE
+
+**[ELSEWHERE — The Postcard Atelier](./elsewhere/)** is a separate creative web app in the `elsewhere/` directory. Create photograph-led postcards with live front/back canvas rendering, three editorial templates, your own photo uploads, a private IndexedDB archive and high-resolution PNG downloads. The original MAEA focus app remains at the repository root.
+
+If GitHub Pages is enabled and deployed successfully, its address is `https://ddogy1212.github.io/maea/elsewhere/`.
