@@ -1,0 +1,25 @@
+{
+  "name": "AHEAD — Your Everyday Workbench",
+  "short_name": "AHEAD",
+  "description": "흩어진 할 일과 마감을 모으고 바로 집중하는 개인 실행 대시보드.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f2eb",
+  "theme_color": "#f4f2eb",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "education",
+    "utilities"
+  ]
+}
