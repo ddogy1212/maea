@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f2ec">
+  <meta name="description" content="ELSEWHERE — 기억하고 싶은 순간을 한 장의 디지털 엽서로. 나만의 사진, 문장, 장소를 아름답게 편집하고 저장하세요.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="ELSEWHERE — The Postcard Atelier">
+  <meta property="og:description" content="Some places never leave us. 여행의 순간을 오래 남기는 작은 아틀리에.">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+  <title>ELSEWHERE — The Postcard Atelier</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+  <div class="site" id="site">
+    <header class="header">
+      <a href="#main" class="logo" aria-label="ELSEWHERE 홈">elsewhere<span class="logo-dot">.</span></a>
+      <nav class="desktop-nav" aria-label="메인 메뉴">
+        <a class="nav-link active" data-nav="discover" href="#discover">발견하기<span class="nav-count">01</span></a>
+        <a class="nav-link" data-nav="collection" href="#collection">컬렉션<span class="nav-count">02</span></a>
+        <button type="button" class="nav-link" id="navArchive">내 보관함<span class="nav-count">03</span></button>
+      </nav>
+      <button type="button" class="header-create" data-open-studio>CREATE A CARD <span aria-hidden="true">↗</span></button>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="heroTitle">
+        <div class="hero-copy">
+          <div class="hero-overline"><span class="overline-star">✳</span><span>THE POSTCARD ATELIER</span><span class="overline-rule"></span><span>EST. 2026</span></div>
+          <p class="hero-small">For the memories that deserve to stay.</p>
+          <h1 id="heroTitle">Some places<br>never <em>leave us.</em></h1>
+          <p class="hero-korean">쉽게 사라지는 하루 속에서도,<br>우리가 오래 간직하고 싶은 장면들이 있으니까.</p>
+          <div class="hero-actions">
+            <button type="button" class="primary-action" data-open-studio><span>나만의 엽서 만들기</span><span aria-hidden="true">↗</span></button>
+            <a href="#collection" class="quiet-action">풍경 둘러보기 <span aria-hidden="true">↘</span></a>
+          </div>
+          <div class="hero-foot"><span class="hand-spark">✧</span><span>MADE OF PLACES, PEOPLE & THE LITTLE THINGS.</span></div>
+        </div>
+        <div class="hero-visual" aria-label="여행지 사진으로 만든 엽서 미리보기">
+          <div class="hero-photo-mat">
+            <img class="hero-photo" src="https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1200&q=85" alt="햇빛이 비치는 지중해 마을 건축물" fetchpriority="high">
+            <span class="hero-photo-meta">NO. 001 &nbsp; — &nbsp; A PLACE TO REMEMBER</span>
+            <div class="photo-bottom"><span class="photo-script">Wish you were here.</span><span class="photo-coord">40°38′N<br>14°36′E</span></div>
+          </div>
+          <div class="hero-visual-foot"><span>FIG. 01 — AN ORDINARY MOMENT, KEPT FOREVER.</span><span>THE ART OF REMEMBERING ↗</span></div>
+          <span class="hero-visual-vertical">BETTER SENT THAN FORGOTTEN / ISSUE N°01</span>
+        </div>
+      </section>
+
+      <div class="ticker" aria-hidden="true"><div class="ticker-track"><span>COLLECT MOMENTS</span><span class="ticker-spark">✳</span><span>NOT THINGS</span><span class="ticker-spark">✳</span><span>KEEP THE FEELING</span><span class="ticker-spark">✳</span><span>COLLECT MOMENTS</span><span class="ticker-spark">✳</span><span>NOT THINGS</span><span class="ticker-spark">✳</span><span>KEEP THE FEELING</span><span class="ticker-spark">✳</span></div></div>
+
+      <section id="discover" class="intro-strip">
+        <span class="section-number">01 / DISCOVER THE ATELIER</span>
+        <div><h2>Memories are <em>made,</em><br>not just taken.</h2><p>빛이 좋았던 오후, 우연히 걸어 들어간 골목, 특별한 이유 없이 좋아졌던 풍경.<br>그런 순간을 사진 한 장과 짧은 문장으로 남겨보세요.</p></div>
+        <span class="intro-scribble" aria-hidden="true">✳</span>
+      </section>
+
+      <section class="collection" id="collection" aria-labelledby="collectionHeading">
+        <div class="section-heading">
+          <div><span class="section-number">02 / THE DESTINATION EDIT</span><h2 id="collectionHeading">Pick a place, <em>find a feeling.</em></h2></div>
+          <div class="heading-note"><span>6 SCENES / INFINITE STORIES</span><span>↙ SELECT TO CREATE</span></div>
+        </div>
+        <div class="destination-grid" id="destinationGrid" aria-label="엽서 배경 풍경 고르기"></div>
+      </section>
+
+      <section class="feature" id="howItWorks">
+        <div class="feature-photo">
+          <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1100&q=84" alt="별이 빛나는 밤, 눈 덮인 산의 풍경" loading="lazy">
+          <span>EVERY MOMENT HAS A STORY TO TELL.</span>
+        </div>
+        <div class="feature-content"><span class="section-number">03 / THE SMALL DETAILS</span><h2>An ordinary<br>image, an<br><em>extraordinary</em><br>memory.</h2>
+          <p>사진을 고르고, 순간의 제목과 이야기를 적고, 마음에 드는 종이의 질감을 선택하세요. 한 장의 엽서를 완성하는 과정까지 즐길 수 있도록.</p>
+          <div class="feature-steps"><div><span>01</span><span>풍경을 고르거나 내 사진 업로드</span></div><div><span>02</span><span>장소와 그날의 문장을 적기</span></div><div><span>03</span><span>고해상도 엽서로 저장하고 간직하기</span></div></div>
+          <button type="button" class="feature-link" data-open-studio>아틀리에 입장하기 <span>↗</span></button>
+        </div>
+      </section>
+
+      <section class="archive-section" id="archive" aria-labelledby="archiveHeading">
+        <div class="section-heading">
+          <div><span class="section-number">04 / YOUR LITTLE ARCHIVE</span><h2 id="archiveHeading">A collection of <em>your own.</em></h2></div>
+          <div class="archive-stat"><span id="archiveCount">00</span><span>POSTCARDS KEPT</span></div>
+        </div>
+        <div class="archive-controls">
+          <div class="archive-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.5"/><path d="m16 16 4.6 4.6"/></svg><label class="sr-only" for="archiveSearch">엽서 검색</label><input type="search" id="archiveSearch" placeholder="장소나 제목으로 검색..." autocomplete="off"></div>
+          <div class="archive-tabs" role="group" aria-label="보관함 필터"><button type="button" class="archive-tab active" data-filter="all" aria-pressed="true">전체</button><button type="button" class="archive-tab" data-filter="favorite" aria-pressed="false">즐겨찾기 ♡</button></div>
+        </div>
+        <div id="archiveGrid" class="archive-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="endnote">
+        <span class="endnote-star">✳</span><p>Do not forget<br>to <em>remember.</em></p><button type="button" data-open-studio>BEGIN A NEW MEMORY <span>↗</span></button>
+      </section>
+    </main>
+
+    <footer class="footer"><span class="footer-logo">elsewhere<span>.</span></span><div><span>THE POSTCARD ATELIER © 2026</span><span>MADE FOR ALL THE PLACES YOU CARRY.</span></div><a href="https://unsplash.com/license" target="_blank" rel="noopener noreferrer">Photography via Unsplash ↗</a></footer>
+  </div>
+
+  <nav class="mobile-nav" aria-label="모바일 탐색">
+    <a href="#discover" class="mobile-nav-link active" data-mobile-target="discover"><svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7M5 10v10h14V10M9.5 20v-7h5v7"/></svg><span>발견</span></a>
+    <a href="#collection" class="mobile-nav-link" data-mobile-target="collection"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m6 16 5-5 3 3 3-5 3 4"/></svg><span>풍경</span></a>
+    <button type="button" class="mobile-nav-create" data-open-studio aria-label="엽서 만들기"><span>＋</span></button>
+    <button type="button" class="mobile-nav-link" data-mobile-archive><svg viewBox="0 0 24 24"><path d="M3 4h18v5H3zM5 9v11h14V9M9 13h6"/></svg><span>보관함</span></button>
+    <button type="button" class="mobile-nav-link" id="mobileAbout"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>소개</span></button>
+  </nav>
+
+  <div id="studio" class="studio" hidden role="dialog" aria-modal="true" aria-labelledby="studioTitle">
+    <div class="studio-head">
+      <div class="studio-brand"><span class="studio-brand-name">elsewhere<span>.</span></span><span class="studio-head-rule"></span><span>THE POSTCARD STUDIO</span></div>
+      <div class="studio-head-right"><span class="unsaved-indicator" id="unsavedIndicator">NEW MEMORY</span><button id="closeStudio" type="button" class="studio-close" aria-label="편집기 닫기">닫기 <span>✕</span></button></div>
+    </div>
+    <div class="studio-mobile-switch" role="group" aria-label="작업 화면"><button type="button" class="switch-btn active" data-mobile-view="edit" aria-pressed="true">01. 편집</button><button type="button" class="switch-btn" data-mobile-view="preview" aria-pressed="false">02. 엽서 미리보기</button></div>
+    <div class="studio-layout" id="studioLayout">
+      <div class="studio-form-side">
+        <div class="studio-overline">MADE BY YOU / FROM SOMEWHERE</div>
+        <h2 id="studioTitle">Make something<br><em>worth keeping.</em></h2>
+        <p class="studio-intro">자신만의 장면을 담아보세요. 모든 내용은 이 기기에만 보관됩니다.</p>
+        <div class="form-section">
+          <div class="form-section-title"><span>01</span><h3>Choose your scene.</h3><span>이미지</span></div>
+          <div id="imagePicker" class="image-picker" role="group" aria-label="배경 사진 선택"></div>
+          <label class="upload-photo" for="fileInput"><span>＋</span><span>내 사진 업로드</span><span>JPG / PNG / WEBP</span></label>
+          <input class="sr-only" type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+          <div class="zoom-input"><label for="imageZoom">사진 확대</label><input type="range" id="imageZoom" min="100" max="165" step="1" value="100"><span id="zoomValue">100%</span></div>
+          <p class="microcopy">사진은 20MB 이하로 업로드해 주세요. 업로드 사진은 저장 시 기기에 보관돼요.</p>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title"><span>02</span><h3>Put it into words.</h3><span>문장</span></div>
+          <div class="field-row"><label for="titleInput">엽서 제목 <span>MAX 60</span></label><input id="titleInput" type="text" maxlength="60" placeholder="The light we followed" autocomplete="off"></div>
+          <div class="field-line"><div class="field-row"><label for="placeInput">장소</label><input id="placeInput" type="text" maxlength="55" placeholder="Somewhere, Italy" autocomplete="off"></div><div class="field-row"><label for="dateInput">날짜</label><input type="date" id="dateInput"></div></div>
+          <div class="field-row"><label for="messageInput">그날의 한 문장 <span>MAX 240</span></label><textarea id="messageInput" maxlength="240" rows="4" placeholder="말로 다 담지 못한 순간을 남겨보세요."></textarea><span id="charCount" class="char-count">0 / 240</span></div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title"><span>03</span><h3>The final touch.</h3><span>스타일</span></div>
+          <div id="templatePicker" class="template-picker" role="group" aria-label="엽서 템플릿"><button class="template-btn selected" type="button" data-template="editorial" aria-pressed="true"><span class="template-swatch editorial-swatch"><i>Paris</i></span><strong>EDITORIAL</strong><small>잡지 속 한 장</small></button><button class="template-btn" type="button" data-template="cinema" aria-pressed="false"><span class="template-swatch cinema-swatch"><i>02 / FRAME</i></span><strong>CINEMA</strong><small>영화의 한 장면</small></button><button class="template-btn" type="button" data-template="classic" aria-pressed="false"><span class="template-swatch classic-swatch"><i>POSTCARD</i></span><strong>HERITAGE</strong><small>오래된 엽서</small></button></div>
+          <div class="orientation-row"><span>엽서 비율</span><div role="group" aria-label="엽서 방향"><button type="button" class="orient-btn selected" data-orientation="landscape" aria-pressed="true">가로</button><button type="button" class="orient-btn" data-orientation="portrait" aria-pressed="false">세로</button></div></div>
+        </div>
+        <div class="studio-form-foot"><button id="savePostcard" type="button" class="save-button">내 보관함에 저장 <span>↗</span></button><span class="studio-privacy">✳ No account. No tracking. Just memories.</span></div>
+      </div>
+      <div class="studio-preview-side">
+        <div class="preview-top"><div><span>LIVE PREVIEW / FRONT & BACK</span><p>Almost like holding it in your hands.</p></div><div class="front-back-toggle" role="group" aria-label="엽서 앞뒷면"><button type="button" class="active" data-face="front" aria-pressed="true">앞면</button><button type="button" data-face="back" aria-pressed="false">뒷면</button></div></div>
+        <div id="canvasStage" class="canvas-stage"><canvas id="postcardCanvas" role="img" aria-label="완성 중인 엽서 미리보기" width="1600" height="1200"></canvas><div id="canvasLoading" class="canvas-loading" hidden>이미지를 불러오는 중...</div></div>
+        <div class="preview-footer"><div class="preview-format"><span class="preview-light"></span><span id="formatLabel">1600 × 1200 PX · PNG</span></div><div class="preview-actions"><button type="button" id="sharePostcard" class="preview-quiet">공유 <span>↗</span></button><button type="button" id="downloadPostcard" class="download-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 17v4h16v-4"/></svg><span>PNG 다운로드</span></button></div></div>
+        <div class="preview-fineprint">THIS IS YOURS TO KEEP. THE MOMENT IS ALREADY ENOUGH.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-cover" id="confirmDialog" hidden><div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText"><span class="confirm-kicker">A LITTLE REMINDER</span><h2 id="confirmTitle">잠깐만요.</h2><p id="confirmText">정말 진행할까요?</p><div><button id="cancelConfirm" type="button">취소</button><button id="acceptConfirm" type="button">계속하기 ↗</button></div></div></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
