@@ -385,7 +385,7 @@
       text(ctx,'WITH LOVE, ALWAYS',edge,h-edge-5,w*.013,'#a08b79',{type:'mono'});
     } else {
       const xRight=w*.54;
-      horizontalRule(ctx,xRight,yTop+42,2,h-yTop-2*edge,'#c5b8aa',2);
+      ctx.fillStyle='#c5b8aa';ctx.fillRect(xRight,yTop+42,2,h-yTop-2*edge);
       stamp(ctx,w-edge-107,yTop+139,92,'POSTMARK');
       text(ctx,'A little note',edge,yTop+142,w*.059,'#7c6253',{italic:true});
       const size=w*.021;
@@ -544,13 +544,15 @@
     const db=await database();
     if(!db) throw new Error('NO_DATABASE');
     return new Promise((resolve,reject)=>{
-      let tx,req;
+      let tx,req,result;
       try {
         tx=db.transaction('cards',mode);
         req=fn(tx.objectStore('cards'));
-        req.onsuccess=()=>resolve(req.result);
+        req.onsuccess=()=>{result=req.result;};
         req.onerror=()=>reject(req.error||new Error('DATABASE_ERROR'));
+        tx.oncomplete=()=>resolve(result);
         tx.onabort=()=>reject(tx.error||new Error('DATABASE_ABORT'));
+        tx.onerror=()=>reject(tx.error||new Error('DATABASE_ERROR'));
       } catch(e){reject(e);}
     });
   }
