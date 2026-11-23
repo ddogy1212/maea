@@ -1,517 +1,683 @@
-/* PRESS. / Fast, local image compression and batch conversion. No backend. */
+/* ELSEWHERE — one photo, one feeling. Zero build dependencies. */
 (() => {
   'use strict';
-
-  const MAX_COUNT = 30;
-  const MAX_BYTES = 35 * 1024 * 1024;
-  const MAX_PIXELS = 65_000_000;
   const $ = id => document.getElementById(id);
   const $$ = selector => Array.from(document.querySelectorAll(selector));
-  const encode = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const supported = new Set(['image/jpeg','image/png','image/webp']);
-  const stored = [];
-  const config = {format:'auto', size:2560, quality:82};
-  let epoch = 0;
-  let processing = false;
-  let runDelay;
-  let toastTimer;
-  let compareItemId = null;
-  let priorFocus = null;
-  const makeId = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2);
-  const sizeText = bytes => {
-    if (bytes === null || !Number.isFinite(bytes)) return '—';
-    const units = ['B','KB','MB','GB'];
-    let num = Math.max(0, bytes);
-    let index = 0;
-    while (num >= 1024 && index < units.length - 1) {num /= 1024;index++;}
-    return (index === 0 ? Math.round(num) : num.toFixed(num >= 100 ? 0 : 1)) + ' ' + units[index];
+  const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[c]);
+  const photoUrl = (id,size=1500) =>
+    'https://images.unsplash.com/'+id+'?auto=format&fit=crop&w='+size+'&q=86';
+  const scenes = [
+    {id:'coast',image:'photo-1533105079780-92b9be482077',name:'The slow summer',hint:'THE SEA / SUNSHINE',place:'여름이 머물던 곳'},
+    {id:'town',image:'photo-1493976040374-85c8e12f0c0e',name:'An afternoon walk',hint:'A WALK / THE CITY',place:'오래된 골목길'},
+    {id:'mountain',image:'photo-1464822759023-fed622ff2c3b',name:'Closer to the sky',hint:'THE MOUNTAINS / SKY',place:'하늘 가까운 곳'},
+    {id:'road',image:'photo-1500530855697-b586d89ba3ee',name:'The long way home',hint:'ON THE ROAD / FAR AWAY',place:'길 위에서'}
+  ];
+  const moods = {
+    memory:[
+      {title:'기억하고 싶은 하루',note:'이날의 빛과 공기를 오래 간직할게.'},
+      {title:'그날의 우리',note:'별일 없던 하루가 가장 오래 기억나기도 해.'},
+      {title:'사라지지 않을 장면',note:'언젠가 다시 꺼내 볼, 마음에 남은 순간.'}
+    ],
+    travel:[
+      {title:'여기서의 하루',note:'멀리 떠나서야 만난, 가까운 행복.'},
+      {title:'길 위의 우리',note:'목적지보다 오래 남을 여정.'},
+      {title:'Wish you were here',note:'마음 한편에 오래 남을 풍경을 발견했어.'}
+    ],
+    celebrate:[
+      {title:'오늘을 축하해',note:'오래도록 반짝일 오늘이 되기를.'},
+      {title:'너에게 주는 한 장',note:'평범한 날도 특별하게 만드는 너에게.'},
+      {title:'A little celebration',note:'이 아름다운 순간을 함께 기념하고 싶어.'}
+    ],
+    cheer:[
+      {title:'잘하고 있어',note:'조금 천천히 가도 괜찮아. 언제나 응원할게.'},
+      {title:'너의 모든 내일에',note:'어떤 길 위에서도 네 편이 되어줄게.'},
+      {title:'You got this',note:'오늘의 너도 충분히 멋지다는 걸 잊지 마.'}
+    ]
   };
-  const percent = (before, after) => Math.round((1 - after / Math.max(before,1)) * 100);
-  const ext = mime => mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png';
-  const sanitized = name => String(name).replace(/[/\\:*?"<>|\x00-\x1f]/g,'_').trim().slice(0,160) || 'image';
-  const outputName = (name,mime) => {
-    const basename=sanitized(name).replace(/\.(jpe?g|png|webp)$/i,'') || 'image';
-    return basename + '-press.' + ext(mime);
+  const styleNames=['editorial','cinema','polaroid'];
+  const prettyStyle=['EDITORIAL','CINEMA','AFTERGLOW'];
+  const localDate=() => {
+    const d=new Date();
+    return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
   };
+  const uniqueId=()=>typeof crypto!=='undefined' && crypto.randomUUID
+    ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);
+  const state={
+    mood:'memory',variation:0,style:'editorial',
+    title:moods.memory[0].title,note:moods.memory[0].note,place:'',
+    date:localDate(),titleEdited:false,noteEdited:false,
+    source:{kind:'sample',id:'coast',url:photoUrl(scenes[0].image,2200),blob:null},
+    archiveId:null
+  };
+  let renderRevision=0;
+  let lastRendered={revision:-1,hasImage:false};
+  let currentOrientation='landscape';
+  let archiveCards=[];
+  let dbPromise;
+  let pendingDeleteId=null;
+  let formerFocus=null;
+  let toastTimer=null;
+  const imageCache=new Map();
 
   function toast(message) {
-    const node = $('toast');
-    node.textContent = message;
-    node.classList.add('show');
+    const el=$('toast');
+    el.textContent=message;
+    el.classList.add('shown');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => node.classList.remove('show'), 3300);
+    toastTimer=setTimeout(()=>el.classList.remove('shown'),3500);
+  }
+  function isMobile(){return window.matchMedia('(max-width:700px)').matches;}
+  function changed() {state.archiveId=null;}
+
+  function setGallery() {
+    $('sceneGallery').innerHTML=scenes.map((scene,index) =>
+      '<button type="button" class="scene-card" data-scene="'+escape(scene.id)+'" aria-label="'+escape(scene.name)+' 풍경으로 엽서 만들기">'+
+        '<img src="'+escape(photoUrl(scene.image,720))+'" loading="lazy" alt="'+escape(scene.name)+' 풍경 사진">'+
+        '<span class="scene-index">FIG. 0'+(index+1)+' / THE JOURNEY EDIT</span><span class="scene-arrow" aria-hidden="true">↗</span>'+
+        '<span class="scene-info"><strong>'+escape(scene.name)+'</strong><small>'+escape(scene.hint)+'</small></span>'+
+      '</button>'
+    ).join('');
   }
 
-  function syncSettings() {
-    $('formatSelect').value = config.format;
-    $('sizeSelect').value = String(config.size);
-    $('qualityRange').value = String(config.quality);
-    $('qualityText').textContent = config.quality + '%';
+  function syncControls() {
+    $('titleInput').value=state.title;
+    $('noteInput').value=state.note;
+    $('placeInput').value=state.place;
+    $('titleCounter').textContent=state.title.length+' / 38';
+    $('noteCounter').textContent=state.note.length+' / 90';
+    $$('#moodList .mood').forEach(button=>{
+      const active=button.dataset.mood===state.mood;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+    $('previewBadge').textContent=state.source.kind==='sample'
+      ? 'DEMO — 사진을 골라보세요'
+      : 'YOUR PHOTO / READY TO KEEP';
+    $('uploadLabelText').textContent=state.source.kind==='sample'
+      ? '내 사진으로 바로 만들기' : '다른 사진으로 바꾸기';
   }
 
-  function render() {
-    const section = $('resultsSection');
-    if (!stored.length) {
-      section.hidden = true;
+  function formatDate(value) {
+    const data=String(value||localDate()).split('-');
+    return data.length===3 ? data[2]+' / '+data[1]+' / '+data[0] : 'A DAY TO REMEMBER';
+  }
+  function font(size,kind='serif',italic=false) {
+    if(kind==='mono')return size+'px "DM Mono", monospace';
+    if(kind==='korean')return '400 '+size+'px "Noto Sans KR", sans-serif';
+    return (italic?'italic ':'')+size+'px "Instrument Serif", Georgia, serif';
+  }
+  function drawText(ctx,string,x,y,size,color,opts={}) {
+    ctx.save();
+    ctx.font=font(size,opts.kind,opts.italic);
+    ctx.fillStyle=color;
+    ctx.textBaseline=opts.baseline||'alphabetic';
+    ctx.textAlign=opts.align||'left';
+    if(opts.shadow){ctx.shadowColor='#0008';ctx.shadowBlur=22;ctx.shadowOffsetY=3;}
+    if(Number.isFinite(opts.maxWidth)&&opts.maxWidth>0)ctx.fillText(String(string),x,y,opts.maxWidth);
+    else ctx.fillText(String(string),x,y);
+    ctx.restore();
+  }
+  function fillRule(ctx,x,y,width,color='#ddd3c8',height=1) {
+    ctx.fillStyle=color;ctx.fillRect(x,y,width,height);
+  }
+  function wrappedLines(ctx,string,maxWidth,size,kind,maxLines=3) {
+    const value=String(string||'').trim();
+    if(!value)return [];
+    ctx.save();ctx.font=font(size,kind);
+    const out=[];let line='';
+    for(const char of Array.from(value)){
+      if(char==='\n'){
+        if(line)out.push(line.trimEnd());
+        line='';
+        if(out.length>=maxLines)break;
+        continue;
+      }
+      const trial=line+char;
+      if(ctx.measureText(trial).width>maxWidth&&line.trim()){
+        out.push(line.trimEnd());
+        if(out.length>=maxLines){line='';break;}
+        line=char===' '?'':char;
+      }else line=trial;
+    }
+    if(line.trim()&&out.length<maxLines)out.push(line.trimEnd());
+    ctx.restore();
+    return out.slice(0,maxLines);
+  }
+  function wrapText(ctx,string,x,startY,maxWidth,size,lineHeight,color,opts={}) {
+    const lines=wrappedLines(ctx,string,maxWidth,size,opts.kind,opts.maxLines||3);
+    lines.forEach((value,index)=>{
+      drawText(ctx,value,x,startY+lineHeight*index,size,color,opts);
+    });
+    return lines.length;
+  }
+  function paper(ctx,w,h,color='#f5f0e6') {
+    ctx.fillStyle=color;ctx.fillRect(0,0,w,h);
+    // Subtle deterministic print grain. This is a finishing touch, not a geometric illustration.
+    let x=3411;
+    const rand=()=>{x=(Math.imul(1664525,x)+1013904223)>>>0;return x/4294967296;};
+    ctx.fillStyle='rgba(63,47,38,.023)';
+    for(let i=0;i<4200;i++) ctx.fillRect(rand()*w,rand()*h,.35+rand()*.8,.35+rand()*.8);
+  }
+  function drawPhoto(ctx,img,x,y,width,height,shade) {
+    ctx.save();
+    ctx.beginPath();ctx.rect(x,y,width,height);ctx.clip();
+    ctx.fillStyle='#9d9588';ctx.fillRect(x,y,width,height);
+    if(img) {
+      const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+      const scale=Math.max(width/iw,height/ih);
+      ctx.drawImage(img,x+(width-iw*scale)/2,y+(height-ih*scale)/2,iw*scale,ih*scale);
+    } else {
+      const gradient=ctx.createLinearGradient(x,y,x+width,y+height);
+      gradient.addColorStop(0,'#b6a99a');gradient.addColorStop(1,'#81766c');
+      ctx.fillStyle=gradient;ctx.fillRect(x,y,width,height);
+    }
+    if(shade){ctx.fillStyle=shade;ctx.fillRect(x,y,width,height);}
+    ctx.restore();
+  }
+  function drawEditorial(ctx,img,w,h,s) {
+    paper(ctx,w,h);
+    const portrait=h>w;
+    const edge=w*.047;
+    const photoH=portrait?h*.735:h*.694;
+    drawPhoto(ctx,img,edge,edge,w-edge*2,photoH);
+    const under=edge+photoH;
+    fillRule(ctx,edge+3,under+42,w-edge*2-6,'#dfd1c3',1);
+    drawText(ctx,'ELSEWHERE / A POSTCARD TO KEEP',edge+3,under+27,w*.0099,'#928477',{kind:'mono'});
+    drawText(ctx,formatDate(s.date),w-edge-3,under+27,w*.0100,'#928477',{kind:'mono',align:'right'});
+    const titleSize=portrait?75:82;
+    const titleY=under+(portrait?118:126);
+    const count=wrapText(ctx,s.title||'우리의 한 장면',edge+3,titleY,w-edge*2-20,titleSize,titleSize*.96,'#423a34',
+      {kind:'korean',maxLines:2});
+    const noteY=Math.min(h-edge-58,titleY+count*titleSize*.96+18);
+    wrapText(ctx,s.note,edge+4,noteY,w-edge*2-75,portrait?25:23,35,'#77655a',{kind:'korean',maxLines:2});
+    drawText(ctx,(s.place||'A MOMENT TO REMEMBER').toUpperCase(),edge+4,h-edge*.47,w*.011,'#a16e5e',{kind:'mono',maxWidth:w*.72});
+    drawText(ctx,'✳',w-edge-12,h-edge*.50,30,'#ad7b64',{align:'right'});
+  }
+  function drawCinema(ctx,img,w,h,s) {
+    drawPhoto(ctx,img,0,0,w,h);
+    const gradient=ctx.createLinearGradient(0,h*.18,0,h);
+    gradient.addColorStop(0,'#0d131000');
+    gradient.addColorStop(.4,'#12191a25');
+    gradient.addColorStop(1,'#0c151ad9');
+    ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);
+    const edge=w*.065;
+    drawText(ctx,'ELSEWHERE. / THE MEMORY ISSUE',edge,edge+13,w*.015,'#fff2e5',{kind:'mono',shadow:true});
+    drawText(ctx,formatDate(s.date),w-edge,edge+13,w*.013,'#fff2e5',{kind:'mono',align:'right',shadow:true});
+    const titleSize=w*.070;
+    const lines=wrappedLines(ctx,s.title||'우리의 한 장면',w-2*edge,titleSize,'korean',3);
+    const start=h-edge-143-(lines.length-1)*titleSize*1.2;
+    lines.forEach((line,i)=>drawText(ctx,line,edge,start+i*titleSize*1.2,titleSize,'#fff7e9',{kind:'korean',shadow:true}));
+    wrapText(ctx,s.note,edge,h-edge-94,w-2*edge,Math.max(21,w*.018),34,'#f4ebdf',{kind:'korean',maxLines:2,shadow:true});
+    fillRule(ctx,edge,h-edge-56,w-2*edge,'#e9e1d57a',2);
+    drawText(ctx,(s.place||'THIS PLACE, THIS MOMENT').toUpperCase(),edge,h-edge-18,w*.011,'#eee2d8',{kind:'mono',maxWidth:w*.7});
+    drawText(ctx,'POSTCARD N° 001',w-edge,h-edge-18,w*.011,'#eee2d8',{kind:'mono',align:'right'});
+  }
+  function drawPolaroid(ctx,img,w,h,s) {
+    paper(ctx,w,h,'#eee8da');
+    const edge=w*.064,portrait=h>w;
+    const top=edge+42;
+    const photoH=portrait?h*.675:h*.67;
+    drawPhoto(ctx,img,edge,top,w-2*edge,photoH,'rgba(117,75,51,.05)');
+    fillRule(ctx,edge,edge-3,w-2*edge,'#c7b5a5',1.5);
+    drawText(ctx,'THE EVERYDAY POSTCARD ATELIER',edge,edge-19,w*.0108,'#877368',{kind:'mono'});
+    const under=top+photoH;
+    drawText(ctx,'—   WISH YOU WERE HERE   —',w/2,under+(portrait?73:63),w*.011,'#9c7f6d',{kind:'mono',align:'center'});
+    const titleSize=portrait?73:78;
+    const lines=wrappedLines(ctx,s.title||'그날의 우리',w-2*edge-10,titleSize,'korean',2);
+    const titleY=under+(portrait?165:151);
+    lines.forEach((line,i)=>drawText(ctx,line,w/2,titleY+i*titleSize*.95,titleSize,'#4a3b31',{kind:'korean',align:'center'}));
+    const messageY=Math.min(h-edge-85,titleY+lines.length*titleSize*1.01+5);
+    wrapText(ctx,s.note,w/2,messageY,w-2*edge-20,Math.max(19,w*.019),34,'#83766a',
+      {kind:'korean',align:'center',maxLines:2});
+    fillRule(ctx,edge,h-edge+10,w-2*edge,'#cfc0b0',1.5);
+    drawText(ctx,(s.place||'SOMEWHERE SPECIAL').toUpperCase(),edge,h-edge+38,w*.011,'#977d6b',{kind:'mono',maxWidth:w*.64});
+    drawText(ctx,formatDate(s.date),w-edge,h-edge+38,w*.011,'#977d6b',{kind:'mono',align:'right'});
+  }
+  function paint(s,image,canvas) {
+    const portrait=!!image&&(image.naturalHeight||image.height)>(image.naturalWidth||image.width)*1.1;
+    const width=portrait?1200:1600,height=portrait?1600:1200;
+    canvas.width=width;canvas.height=height;
+    currentOrientation=portrait?'portrait':'landscape';
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx)throw new Error('이미지 그리기를 지원하지 않는 기기예요.');
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    if(s.style==='cinema')drawCinema(ctx,image,width,height,s);
+    else if(s.style==='polaroid')drawPolaroid(ctx,image,width,height,s);
+    else drawEditorial(ctx,image,width,height,s);
+    $('exportDimensions').textContent=width+' × '+height+' PX · PNG';
+  }
+
+  function getImage(source) {
+    const key=source.url;
+    if(imageCache.has(key))return imageCache.get(key);
+    const result=new Promise((resolve,reject)=>{
+      const img=new Image();
+      if(source.kind==='sample')img.crossOrigin='anonymous';
+      img.decoding='async';
+      img.onload=()=>resolve(img);
+      img.onerror=()=>reject(new Error('풍경 사진을 불러오지 못했어요.'));
+      img.src=key;
+    });
+    imageCache.set(key,result);
+    result.catch(()=>imageCache.delete(key));
+    if(imageCache.size>9){
+      const oldKey=imageCache.keys().next().value;
+      if(oldKey!==key)imageCache.delete(oldKey);
+    }
+    return result;
+  }
+
+  async function render() {
+    const token=++renderRevision;
+    $('canvasWait').hidden=false;
+    const snapshot={...state,source:{...state.source}};
+    let img=null;
+    try {img=await getImage(snapshot.source);}
+    catch { /* Placeholder renders but cannot be exported. */ }
+    if(document.fonts?.ready){try{await document.fonts.ready;}catch{}}
+    if(token!==renderRevision)return false;
+    try{
+      paint(snapshot,img,$('postcardCanvas'));
+      lastRendered={revision:token,hasImage:!!img};
+      $('canvasWait').hidden=true;
+      $('previewStatus').textContent=img
+        ? (snapshot.source.kind==='sample'?'샘플 엽서 · 사진을 고르면 내 엽서가 돼요':'완성됐어요 · 바로 공유하거나 저장하세요')
+        : '사진을 불러오지 못했어요. 내 사진을 선택해 주세요.';
+      return !!img;
+    }catch(error){
+      $('canvasWait').hidden=true;
+      $('previewStatus').textContent='미리보기를 만들지 못했어요.';
+      lastRendered={revision:token,hasImage:false};
+      return false;
+    }
+  }
+
+  async function readPhoto(file) {
+    if(!file) return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('JPG·PNG·WEBP 사진을 선택해 주세요.');return;}
+    if(file.size>20*1024*1024){toast('사진은 20MB 이하만 사용할 수 있어요.');return;}
+    if(file.size===0){toast('비어 있는 파일은 사용할 수 없어요.');return;}
+    const url=URL.createObjectURL(file);
+    const next={kind:'upload',id:null,url,blob:file};
+    $('canvasWait').hidden=false;
+    try {
+      const img=await getImage(next);
+      if((img.naturalWidth||img.width)*(img.naturalHeight||img.height)>65_000_000){
+        throw new Error('해상도가 너무 큰 사진이에요. 65MP 이하로 선택해 주세요.');
+      }
+    } catch(error) {
+      imageCache.delete(url);URL.revokeObjectURL(url);
+      $('canvasWait').hidden=true;
+      toast(error.message||'사진을 읽지 못했어요. 다른 파일을 골라 주세요.');
       return;
     }
-    section.hidden = false;
-    const ready = stored.filter(item => item.status === 'ready');
-    const errors = stored.filter(item => item.status === 'error');
-    const busy = stored.filter(item => item.status === 'queued' || item.status === 'processing');
-    const originalTotal = ready.reduce((n,item)=>n+item.file.size,0);
-    const afterTotal = ready.reduce((n,item)=>n+item.result.size,0);
-    $('savedPercent').textContent = ready.length ? (percent(originalTotal,afterTotal) >= 0 ? '−' : '+') + Math.abs(percent(originalTotal,afterTotal)) + '%' : '—';
-    $('totalBefore').textContent = ready.length ? sizeText(originalTotal) : '—';
-    $('totalAfter').textContent = ready.length ? sizeText(afterTotal) : '—';
-    $('savedPercent').style.color = ready.length && afterTotal > originalTotal ? '#ab7254' : '#476d52';
-    $('listCount').textContent = 'FILES / ' + stored.length;
-    $('progressText').textContent = busy.length
-      ? '변환 중 · ' + ready.length + '/' + stored.length
-      : errors.length ? ready.length + '장 완료 · ' + errors.length + '장 확인 필요'
-      : '모두 준비됐어요 · ' + ready.length + '장';
-    $('downloadAll').disabled = busy.length > 0 || !ready.length;
-    const html = stored.map(item => {
-      const dimensions = item.width && item.height ? item.width + ' × ' + item.height + 'px' : '이미지 확인 중';
-      const result = item.result;
-      const saving = result ? percent(item.file.size,result.size) : 0;
-      const status = item.status;
-      const thumb = item.originalUrl || '';
-      return `<article class="file-row ${status==='processing'||status==='queued'?'busy':''} ${status==='error'?'failed':''}" data-id="${encode(item.id)}">
-        <img class="file-thumb" src="${encode(thumb)}" alt="" loading="lazy">
-        <div class="file-name-col"><strong title="${encode(item.file.name)}">${encode(item.file.name)}</strong><span>${encode(dimensions)}</span></div>
-        <div class="file-sizes"><del>${sizeText(item.file.size)}</del><strong>${status==='ready' ? sizeText(result.size) : '—'}</strong></div>
-        <div class="file-saving">
-          ${status==='ready'
-            ? `<span class="${saving<0?'worse':''}">${item.keptOriginal ? '원본 유지' : saving>=0 ? '−'+saving+'%' : '+'+Math.abs(saving)+'%'} </span>
-               <button type="button" data-compare="${encode(item.id)}" aria-label="${encode(item.file.name)} 변환 전후 비교">비교 ↗</button>`
-            : status==='error'
-              ? `<span class="worse">처리 실패</span><span class="file-error" title="${encode(item.error||'')}">${encode(item.error||'사진을 열 수 없어요.')}</span>`
-              : '<span>압축하는 중...</span>'}
-        </div>
-        <div class="file-actions">
-          <button class="file-download" type="button" data-download="${encode(item.id)}" ${status==='ready'?'':'disabled'}>저장 ↓</button>
-          <button class="file-remove" type="button" data-remove="${encode(item.id)}" title="이 사진 제거" aria-label="${encode(item.file.name)} 제거">×</button>
-        </div>
-      </article>`;
-    }).join('');
-    $('fileList').innerHTML = html;
-  }
-
-  function cleanupResult(item) {
-    if(item.outputUrl) URL.revokeObjectURL(item.outputUrl);
-    item.outputUrl = null;
-    item.result = null;
-    item.keptOriginal = false;
-  }
-  function clearItem(item) {
-    cleanupResult(item);
-    if(item.originalUrl) URL.revokeObjectURL(item.originalUrl);
-    item.originalUrl=null;
-  }
-
-  async function acceptFiles(fileList) {
-    const files = Array.from(fileList || []);
-    if (!files.length) return;
-    const available = Math.max(0,MAX_COUNT-stored.length);
-    const selected = files.slice(0,available);
-    let ignored = files.length-selected.length;
-    let unsupported = 0;
-    let oversized = 0;
-    const added = [];
-    for (const file of selected) {
-      if (!supported.has(file.type)) {unsupported++;continue;}
-      if (file.size > MAX_BYTES) {oversized++;continue;}
-      if (!file.size) {unsupported++;continue;}
-      const originalUrl = URL.createObjectURL(file);
-      const item = {id:makeId(), file, originalUrl, outputUrl:null, result:null, status:'queued',width:null,height:null,error:'',keptOriginal:false};
-      stored.push(item);
-      added.push(item);
+    const previous=state.source;
+    state.source=next;changed();
+    if(previous.kind!=='sample'&&previous.url.startsWith('blob:')){
+      imageCache.delete(previous.url);
+      URL.revokeObjectURL(previous.url);
     }
-    if (ignored) toast('최대 30장까지 처리할 수 있어요. ' + ignored + '장은 제외했어요.');
-    else if (oversized) toast('35MB를 넘는 ' + oversized + '장은 제외했어요.');
-    else if (unsupported) toast('JPG·PNG·WEBP 파일만 지원해요. ' + unsupported + '장은 제외했어요.');
-    if(!added.length) return;
-    render();
-    const section = $('resultsSection');
-    section.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
-    void runQueue();
+    syncControls();
+    await render();
+    toast('내 사진으로 엽서를 만들었어요. 바로 공유해 보세요! ✳');
+    if(isMobile())$('postcardCanvas').scrollIntoView({behavior:'smooth',block:'center'});
   }
 
-  async function decodeImage(file) {
-    if ('createImageBitmap' in window) {
-      try {
-        const bitmap = await createImageBitmap(file,{imageOrientation:'from-image'});
-        return {image:bitmap,width:bitmap.width,height:bitmap.height,dispose:()=>bitmap.close()};
-      } catch { /* fallback below */ }
+  async function chooseScene(id) {
+    const scene=scenes.find(x=>x.id===id);
+    if(!scene)return;
+    const previous=state.source;
+    state.source={kind:'sample',id,url:photoUrl(scene.image,2200),blob:null};
+    state.place=scene.place;
+    changed();
+    if(previous.kind!=='sample'&&previous.url.startsWith('blob:')){
+      imageCache.delete(previous.url);URL.revokeObjectURL(previous.url);
     }
-    const url=URL.createObjectURL(file);
-    try {
-      const image = new Image();
-      image.decoding='async';
-      await new Promise((resolve,reject)=>{
-        image.onload=resolve;
-        image.onerror=()=>reject(new Error('파일을 이미지로 읽을 수 없어요.'));
-        image.src=url;
-      });
-      return {image,width:image.naturalWidth,height:image.naturalHeight,dispose:()=>{}};
-    } finally { URL.revokeObjectURL(url); }
+    syncControls();
+    const ok=await render();
+    if(!ok)toast('풍경을 불러오지 못했어요. 내 사진을 선택해 보세요.');
+    $('create').scrollIntoView({behavior:'smooth',block:'start'});
   }
 
-  function chooseMime(file) {
-    if (config.format === 'jpeg') return 'image/jpeg';
-    if (config.format === 'png') return 'image/png';
-    if (config.format === 'webp') return 'image/webp';
-    return file.type === 'image/png' ? 'image/webp' : file.type;
+  function updateText() {
+    state.title=$('titleInput').value;
+    state.note=$('noteInput').value;
+    state.place=$('placeInput').value;
+    $('titleCounter').textContent=state.title.length+' / 38';
+    $('noteCounter').textContent=state.note.length+' / 90';
+    changed();
+    scheduleRender();
+  }
+  let renderDelay=0;
+  function scheduleRender(){
+    clearTimeout(renderDelay);
+    renderDelay=setTimeout(()=>void render(),75);
   }
 
-  function canvasBlob(canvas,type,quality) {
+  function changeMood(mood) {
+    if(!moods[mood])return;
+    state.mood=mood;
+    state.variation=0;
+    if(!state.titleEdited)state.title=moods[mood][0].title;
+    if(!state.noteEdited)state.note=moods[mood][0].note;
+    changed();
+    syncControls();
+    void render();
+  }
+
+  function changeSuggestion() {
+    state.variation=(state.variation+1)%moods[state.mood].length;
+    const next=moods[state.mood][state.variation];
+    state.title=next.title;state.note=next.note;
+    state.titleEdited=false;state.noteEdited=false;
+    changed();syncControls();void render();
+  }
+  function nextStyle() {
+    state.style=styleNames[(styleNames.indexOf(state.style)+1)%styleNames.length];
+    changed();
+    $('nextStyle').innerHTML='디자인 바꾸기 <span aria-hidden="true">↻</span>';
+    toast('디자인 '+prettyStyle[styleNames.indexOf(state.style)]+' 적용');
+    void render();
+  }
+
+  function canvasToBlob(canvas,type='image/png',quality) {
     return new Promise((resolve,reject)=>{
-      try {canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('브라우저에서 이미지 변환에 실패했어요.')),type,quality);}
-      catch {reject(new Error('이미지를 저장할 수 없어요.'));}
+      try{
+        canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('이미지 파일을 만들지 못했어요.')),type,quality);
+      }catch(e){reject(e);}
     });
   }
-
-  async function convert(item,options) {
-    let decoded;
-    try {
-      decoded = await decodeImage(item.file);
-      const {image,width,height} = decoded;
-      if(!width || !height) throw new Error('사진 크기를 확인할 수 없어요.');
-      if(width*height>MAX_PIXELS) throw new Error('사진이 너무 커요. 65MP 이하만 지원해요.');
-      const scale = options.size>0 ? Math.min(1,options.size/Math.max(width,height)) : 1;
-      const w = Math.max(1,Math.round(width*scale));
-      const h = Math.max(1,Math.round(height*scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const context = canvas.getContext('2d',{alpha:true});
-      if(!context) throw new Error('이미지를 편집할 수 없는 브라우저예요.');
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = 'high';
-      const requested = options.format==='auto'
-        ? item.file.type==='image/png'?'image/webp':item.file.type
-        : options.format==='jpeg'?'image/jpeg'
-          : options.format==='png'?'image/png':'image/webp';
-      if(requested==='image/jpeg') {
-        context.fillStyle='#ffffff';
-        context.fillRect(0,0,w,h);
-      }
-      context.drawImage(image,0,0,w,h);
-      const blob = await canvasBlob(canvas,requested,options.quality/100);
-      // A browser may silently replace an unsupported encoder with PNG.
-      const actualMime = supported.has(blob.type) ? blob.type : 'image/png';
-      const dimensionsUnchanged = w===width && h===height;
-      const sameType = actualMime===item.file.type;
-      const keepOriginal = options.format==='auto' && dimensionsUnchanged && sameType && blob.size>=item.file.size;
-      return {blob:keepOriginal?item.file:blob,outputType:keepOriginal?item.file.type:actualMime,width,height,w,h,keptOriginal:keepOriginal};
-    } finally {
-      if(decoded?.dispose)decoded.dispose();
-    }
+  async function imageBlob() {
+    const success=await render();
+    if(!success)throw new Error('사진을 불러오지 못했어요. 내 사진을 선택한 뒤 다시 시도해 주세요.');
+    return canvasToBlob($('postcardCanvas'));
   }
-
-  async function runQueue() {
-    if(processing) return;
-    processing=true;
-    try {
-      while(true) {
-        const job=stored.find(item=>item.status==='queued');
-        if(!job) break;
-        const token=epoch;
-        const options={...config};
-        job.status='processing';
-        render();
-        let conversion=null;
-        try {
-          conversion = await convert(job,options);
-          if(!stored.includes(job)) continue;
-          if(token!==epoch) {job.status='queued';continue;}
-          cleanupResult(job);
-          job.width=conversion.width;
-          job.height=conversion.height;
-          job.result=conversion.blob;
-          job.outputUrl=URL.createObjectURL(conversion.blob);
-          job.outputType=conversion.outputType;
-          job.outputWidth=conversion.w;
-          job.outputHeight=conversion.h;
-          job.keptOriginal=conversion.keptOriginal;
-          job.status='ready';
-          job.error='';
-        } catch(error) {
-          if(!stored.includes(job)) continue;
-          if(token!==epoch) {job.status='queued';continue;}
-          job.status='error';
-          job.error=String(error?.message||'변환할 수 없는 파일이에요.').slice(0,90);
-        }
-        render();
-      }
-    } finally {
-      processing=false;
-      render();
-      if(stored.some(item=>item.status==='queued')) setTimeout(runQueue,0);
-    }
+  function exportName() {
+    return 'elsewhere-'+(state.title||'my-memory').trim()
+      .replace(/[\\/:*?"<>|\x00-\x1f]/g,'').replace(/\s+/g,'-').slice(0,44)+'.png';
   }
-
-  function changeSettings() {
-    epoch++;
-    clearTimeout(runDelay);
-    for(const item of stored) {
-      cleanupResult(item);
-      item.status='queued';
-      item.error='';
-    }
-    render();
-    runDelay=setTimeout(()=>void runQueue(),220);
-  }
-
-  function downloadBlob(blob,filename) {
+  function saveFile(blob,filename) {
     const url=URL.createObjectURL(blob);
-    const anchor=document.createElement('a');
-    anchor.href=url;anchor.download=filename;
-    document.body.appendChild(anchor);anchor.click();anchor.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),2500);
+    const link=document.createElement('a');
+    link.href=url;link.download=filename;
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
   }
-  function singleDownload(item) {
-    if(!item?.result)return;
-    downloadBlob(item.result,outputName(item.file.name,item.outputType));
-    toast('사진을 저장했어요.');
-  }
-
-  // ZIP: store already-compressed images without recompressing them. RFC 1952-style CRC-32,
-  // standard ZIP local file headers, central directory, and EOCD. UTF-8 filename flag set.
-  const crcTable = Array.from({length:256},(_,index)=>{
-    let x=index;
-    for(let b=0;b<8;b++) x=(x&1)?(0xEDB88320^(x>>>1)):(x>>>1);
-    return x>>>0;
-  });
-  function crc32(bytes) {
-    let crc=0xFFFFFFFF;
-    for(const b of bytes) crc=crcTable[(crc^b)&255]^(crc>>>8);
-    return (crc^0xFFFFFFFF)>>>0;
-  }
-  function dosStamp(date=new Date()) {
-    const year=Math.max(1980,Math.min(2107,date.getFullYear()));
-    return {date:((year-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate(),
-      time:(date.getHours()<<11)|(date.getMinutes()<<5)|(Math.floor(date.getSeconds()/2))};
-  }
-  function makeHeader(size,writer) {
-    const bytes=new Uint8Array(size);
-    const view=new DataView(bytes.buffer);
-    writer(view,bytes);
-    return bytes;
-  }
-  async function makeZip(rows) {
-    if(rows.length>0xFFFF) throw new Error('ZIP 파일 수 제한을 초과했어요.');
-    const encoder=new TextEncoder();
-    const parts=[];
-    const directory=[];
-    const usedNames=new Set();
-    let offset=0, directorySize=0;
-    const stamp=dosStamp();
-    for(const item of rows) {
-      const base=outputName(item.file.name,item.outputType);
-      let filename=base,index=2;
-      while(usedNames.has(filename.toLowerCase())) {
-        filename=base.replace(/(\.[^.]+)$/,' ('+(index++)+')$1');
-      }
-      usedNames.add(filename.toLowerCase());
-      const name=encoder.encode(filename);
-      const bytes=new Uint8Array(await item.result.arrayBuffer());
-      const size=bytes.byteLength;
-      const crc=crc32(bytes);
-      if(offset+size>=0xFFFFFFFF) throw new Error('ZIP 용량이 너무 커요. 사진을 나눠서 저장해 주세요.');
-      const local=makeHeader(30+name.length,(v,buffer)=>{
-        v.setUint32(0,0x04034b50,true);
-        v.setUint16(4,20,true);v.setUint16(6,0x0800,true);v.setUint16(8,0,true);
-        v.setUint16(10,stamp.time,true);v.setUint16(12,stamp.date,true);
-        v.setUint32(14,crc,true);v.setUint32(18,size,true);v.setUint32(22,size,true);
-        v.setUint16(26,name.length,true);v.setUint16(28,0,true);
-        buffer.set(name,30);
-      });
-      parts.push(local,bytes);
-      const currentOffset=offset;
-      offset += local.length+size;
-      const central=makeHeader(46+name.length,(v,buffer)=>{
-        v.setUint32(0,0x02014b50,true);
-        v.setUint16(4,20,true);v.setUint16(6,20,true);v.setUint16(8,0x0800,true);
-        v.setUint16(10,0,true);v.setUint16(12,stamp.time,true);v.setUint16(14,stamp.date,true);
-        v.setUint32(16,crc,true);v.setUint32(20,size,true);v.setUint32(24,size,true);
-        v.setUint16(28,name.length,true);v.setUint16(30,0,true);v.setUint16(32,0,true);
-        v.setUint16(34,0,true);v.setUint16(36,0,true);v.setUint32(38,0,true);
-        v.setUint32(42,currentOffset,true);
-        buffer.set(name,46);
-      });
-      directory.push(central);
-      directorySize+=central.length;
-    }
-    parts.push(...directory);
-    const end=makeHeader(22,v=>{
-      v.setUint32(0,0x06054b50,true);
-      v.setUint16(4,0,true);v.setUint16(6,0,true);
-      v.setUint16(8,rows.length,true);v.setUint16(10,rows.length,true);
-      v.setUint32(12,directorySize,true);v.setUint32(16,offset,true);
-      v.setUint16(20,0,true);
-    });
-    parts.push(end);
-    return new Blob(parts,{type:'application/zip'});
-  }
-
-  async function downloadAll() {
-    const rows=stored.filter(item=>item.status==='ready');
-    if(!rows.length)return;
-    const button=$('downloadAll');
-    button.disabled=true;
-    button.textContent='ZIP 파일을 만드는 중...';
+  async function download() {
+    const btn=$('downloadBtn');
+    btn.disabled=true;
     try {
-      const zip=await makeZip(rows);
-      const d=new Date();
-      const name='press-images-'+[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')+'.zip';
-      downloadBlob(zip,name);
-      toast(rows.length+'장의 사진을 ZIP 파일로 저장했어요.');
-    } catch(error) {
-      toast(String(error?.message||'ZIP 파일을 만들지 못했어요.'));
-    } finally {
-      button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 17v4h16v-4"/></svg> 전체 ZIP 저장 <span>↗</span>';
-      render();
+      saveFile(await imageBlob(),exportName());
+      toast('엽서 이미지를 저장했어요. ✳');
+    }catch(error){toast(error.message||'저장에 실패했어요.');}
+    finally{btn.disabled=false;}
+  }
+  async function share() {
+    const btn=$('shareBtn');
+    btn.disabled=true;
+    try{
+      const blob=await imageBlob();
+      const name=exportName();
+      const file=new File([blob],name,{type:'image/png'});
+      if(navigator.share && navigator.canShare?.({files:[file]})){
+        try{
+          await navigator.share({files:[file],title:'ELSEWHERE / 나만의 엽서'});
+        }catch(error){
+          if(error.name!=='AbortError'){
+            saveFile(blob,name);
+            toast('공유 대신 PNG로 저장했어요. 카톡에서 사진으로 보내면 돼요.');
+          }
+        }
+      } else {
+        saveFile(blob,name);
+        toast('이 기기는 직접 공유를 지원하지 않아 PNG를 저장했어요.');
+      }
+    }catch(error){toast(error.message||'공유 준비에 실패했어요.');}
+    finally{btn.disabled=false;}
+  }
+
+  function db(){
+    if(dbPromise)return dbPromise;
+    dbPromise=new Promise((resolve,reject)=>{
+      if(!('indexedDB' in window)){reject(new Error('NO_DB'));return;}
+      let req;
+      try{req=indexedDB.open('elsewhere-studio-v2',1);}catch(e){reject(e);return;}
+      req.onupgradeneeded=()=>{
+        if(!req.result.objectStoreNames.contains('cards'))req.result.createObjectStore('cards',{keyPath:'id'});
+      };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error||new Error('저장소를 열 수 없어요.'));
+      req.onblocked=()=>reject(new Error('저장소가 다른 탭에 의해 잠겨 있어요.'));
+    });
+    return dbPromise;
+  }
+  async function dbAction(mode,operation){
+    const database=await db();
+    return new Promise((resolve,reject)=>{
+      let result;
+      let transaction;
+      try{
+        transaction=database.transaction('cards',mode);
+        const req=operation(transaction.objectStore('cards'));
+        req.onsuccess=()=>{result=req.result;};
+        req.onerror=()=>reject(req.error||new Error('DB request failed'));
+        transaction.oncomplete=()=>resolve(result);
+        transaction.onabort=()=>reject(transaction.error||new Error('DB transaction aborted'));
+        transaction.onerror=()=>reject(transaction.error||new Error('DB transaction failed'));
+      }catch(e){reject(e);}
+    });
+  }
+  async function readArchive(){
+    try{
+      archiveCards=await dbAction('readonly',store=>store.getAll());
+      archiveCards.sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+    }catch{
+      archiveCards=[];
     }
+    $('archiveCount').textContent=String(archiveCards.length);
+    drawArchive();
+  }
+  function thumbnail() {
+    const full=$('postcardCanvas');
+    const tiny=document.createElement('canvas');
+    tiny.width=360;tiny.height=Math.round(full.height*360/full.width);
+    tiny.getContext('2d').drawImage(full,0,0,tiny.width,tiny.height);
+    return tiny.toDataURL('image/jpeg',.76);
+  }
+  async function packSource() {
+    const img=await getImage(state.source);
+    const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+    const factor=Math.min(1,1800/Math.max(iw,ih));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(iw*factor));
+    canvas.height=Math.max(1,Math.round(ih*factor));
+    const ctx=canvas.getContext('2d');
+    if(!ctx)throw new Error('사진을 보관함에 저장할 수 없어요.');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    return canvasToBlob(canvas,'image/jpeg',.88);
+  }
+  async function saveArchive() {
+    const button=$('saveArchiveBtn');
+    button.disabled=true;
+    try{
+      const blob=await imageBlob();
+      if(!blob)throw new Error('사진을 만들 수 없어요.');
+      if(!state.archiveId && archiveCards.length>=40)throw new Error('보관함이 가득 찼어요. 40장까지 저장할 수 있어요.');
+      const sourceBlob=await packSource();
+      const now=new Date().toISOString();
+      const before=archiveCards.find(card=>card.id===state.archiveId);
+      const card={
+        id:state.archiveId||uniqueId(),createdAt:before?.createdAt||now,updatedAt:now,
+        imageBlob:sourceBlob,preview:thumbnail(),
+        title:state.title,note:state.note,place:state.place,mood:state.mood,
+        variation:state.variation,style:state.style,date:state.date,
+        titleEdited:state.titleEdited,noteEdited:state.noteEdited
+      };
+      await dbAction('readwrite',store=>store.put(card));
+      state.archiveId=card.id;
+      await readArchive();
+      toast('내 엽서함에 저장했어요. 이 기기에서 다시 꺼내 볼 수 있어요. ♡');
+    }catch(error){
+      toast(error.message==='NO_DB'?'이 브라우저에서 보관함을 사용할 수 없어요. PNG로 저장해 주세요.':error.message||'저장에 실패했어요. 기기 공간을 확인해 주세요.');
+    }finally{button.disabled=false;}
   }
 
-  function comparePosition() {
-    const value=Number($('compareRange').value);
-    $('compareAfter').style.clipPath='inset(0 0 0 '+value+'%)';
-    $('compareDivider').style.left=value+'%';
-  }
-  function openCompare(item) {
-    if(item?.status!=='ready')return;
-    priorFocus=document.activeElement;
-    compareItemId=item.id;
-    $('compareBefore').src=item.originalUrl;
-    $('compareAfter').src=item.outputUrl;
-    $('compareTitle').textContent=item.file.name;
-    $('compareStats').textContent=sizeText(item.file.size)+' → '+sizeText(item.result.size)+
-      ' · '+item.outputWidth+' × '+item.outputHeight+'px · '+item.outputType.replace('image/','').toUpperCase();
-    $('compareRange').value='50';
-    comparePosition();
-    $('compareBackdrop').hidden=false;
-    $('closeCompare').focus();
-  }
-  function closeCompare() {
-    $('compareBackdrop').hidden=true;
-    compareItemId=null;
-    $('compareBefore').removeAttribute('src');
-    $('compareAfter').removeAttribute('src');
-    if(priorFocus?.focus)priorFocus.focus({preventScroll:true});
-  }
-
-  function clearAll() {
-    epoch++;
-    clearTimeout(runDelay);
-    for(const item of stored) clearItem(item);
-    stored.length=0;
-    if(!$('compareBackdrop').hidden)closeCompare();
-    render();
-    $('fileInput').value='';
-    toast('목록을 비웠어요. 저장된 파일에는 영향이 없어요.');
-  }
-
-  function handleListAction(event) {
-    const button=event.target.closest('[data-remove],[data-download],[data-compare]');
-    if(!button)return;
-    const id=button.dataset.remove||button.dataset.download||button.dataset.compare;
-    const item=stored.find(row=>row.id===id);
-    if(!item)return;
-    if(button.hasAttribute('data-remove')) {
-      const index=stored.indexOf(item);
-      stored.splice(index,1);
-      clearItem(item);
-      if(compareItemId===id)closeCompare();
-      render();
-    } else if(button.hasAttribute('data-download')) singleDownload(item);
-    else openCompare(item);
-  }
-
-  function bind() {
-    const input=$('fileInput');
-    for(const id of ['chooseFiles','addMore','bottomChoose']) {
-      $(id).addEventListener('click',()=>input.click());
+  function drawArchive() {
+    const container=$('archiveItems');
+    if(!archiveCards.length){
+      container.innerHTML='<div class="archive-empty"><span>✳</span><h3>Your story starts here.</h3>'+
+        '<p>아직 보관한 엽서가 없어요.<br>사진 한 장으로 첫 장면을 만들어 보세요.</p>'+
+        '<button type="button" data-archive-new>첫 엽서 만들기 ↗</button></div>';
+      return;
     }
-    input.addEventListener('change',event=>{
-      const selected=Array.from(event.target.files||[]);
+    container.innerHTML=archiveCards.map(card=>
+      '<article class="archive-item">'+
+      '<img src="'+escape(card.preview)+'" alt="'+escape(card.title||'나의 엽서')+' 이미지" loading="lazy">'+
+      '<h3 class="archive-item-title">'+escape(card.title||'어느 날의 엽서')+'</h3>'+
+      '<span class="archive-item-date">'+escape(formatDate(card.date))+'</span>'+
+      '<div class="archive-item-controls"><button type="button" data-restore="'+escape(card.id)+'">다시 열기 ↗</button>'+
+      '<button type="button" data-delete="'+escape(card.id)+'" aria-label="'+escape(card.title||'엽서')+' 삭제">삭제</button></div>'+
+      '</article>').join('');
+  }
+  function openArchive(){
+    formerFocus=document.activeElement;
+    $('archiveOverlay').hidden=false;
+    document.body.classList.add('modal-open');
+    void readArchive();
+    $('closeArchive').focus();
+  }
+  function closeArchive(){
+    $('archiveOverlay').hidden=true;
+    document.body.classList.remove('modal-open');
+    if(formerFocus?.focus)formerFocus.focus({preventScroll:true});
+  }
+  async function restoreCard(card) {
+    if(!card?.imageBlob){toast('이 엽서를 불러올 수 없어요.');return;}
+    const url=URL.createObjectURL(card.imageBlob);
+    const next={kind:'stored',id:null,url,blob:card.imageBlob};
+    try{await getImage(next);}catch{
+      URL.revokeObjectURL(url);toast('저장된 사진을 열 수 없어요.');return;
+    }
+    const previous=state.source;
+    state.source=next;
+    if(previous.kind!=='sample'&&previous.url.startsWith('blob:')){
+      imageCache.delete(previous.url);URL.revokeObjectURL(previous.url);
+    }
+    for(const key of ['title','note','place','mood','variation','style','date','titleEdited','noteEdited']){
+      if(card[key]!==undefined)state[key]=card[key];
+    }
+    state.archiveId=card.id;
+    syncControls();closeArchive();
+    await render();
+    $('create').scrollIntoView({behavior:'smooth',block:'start'});
+    toast('보관해 둔 엽서를 다시 열었어요. ✳');
+  }
+  function requestDelete(id){
+    if(!archiveCards.some(card=>card.id===id))return;
+    pendingDeleteId=id;
+    $('confirmLayer').hidden=false;
+    $('cancelConfirm').focus();
+  }
+  function cancelDelete(){pendingDeleteId=null;$('confirmLayer').hidden=true;$('closeArchive').focus();}
+  async function deleteCard(){
+    if(!pendingDeleteId)return;
+    const id=pendingDeleteId;
+    pendingDeleteId=null;
+    $('confirmLayer').hidden=true;
+    try{
+      await dbAction('readwrite',store=>store.delete(id));
+      if(state.archiveId===id)state.archiveId=null;
+      await readArchive();
+      toast('엽서를 보관함에서 지웠어요.');
+      $('closeArchive').focus();
+    }catch{toast('삭제에 실패했어요. 다시 시도해 주세요.');}
+  }
+
+  function bind(){
+    $('photoInput').addEventListener('change',event=>{
+      const file=event.target.files?.[0];
       event.target.value='';
-      void acceptFiles(selected);
+      void readPhoto(file);
     });
-    const drop=$('uploadSection');
-    for(const type of ['dragenter','dragover']) {
-      drop.addEventListener(type,event=>{
-        event.preventDefault();
-        if(event.dataTransfer) event.dataTransfer.dropEffect='copy';
-        drop.classList.add('dragover');
+    const areas=[$('dropArea'),document.querySelector('.preview-stage')];
+    areas.forEach(area=>{
+      area.addEventListener('dragover',event=>{event.preventDefault();area.classList.add('dragging');});
+      area.addEventListener('dragleave',event=>{if(!area.contains(event.relatedTarget))area.classList.remove('dragging');});
+      area.addEventListener('drop',event=>{
+        event.preventDefault();area.classList.remove('dragging');
+        void readPhoto(event.dataTransfer?.files?.[0]);
       });
-    }
-    drop.addEventListener('dragleave',event=>{
-      if(!drop.contains(event.relatedTarget)) drop.classList.remove('dragover');
-    });
-    drop.addEventListener('drop',event=>{
-      event.preventDefault();
-      drop.classList.remove('dragover');
-      void acceptFiles(event.dataTransfer?.files);
     });
     window.addEventListener('dragover',event=>{
-      if(Array.from(event.dataTransfer?.types||[]).includes('Files')) event.preventDefault();
+      if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();
     });
     window.addEventListener('drop',event=>{
-      if(Array.from(event.dataTransfer?.types||[]).includes('Files')) event.preventDefault();
+      if(Array.from(event.dataTransfer?.types||[]).includes('Files'))event.preventDefault();
     });
     document.addEventListener('paste',event=>{
       if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;
-      const files=Array.from(event.clipboardData?.files||[]);
-      if(files.length){event.preventDefault();void acceptFiles(files);}
+      const file=Array.from(event.clipboardData?.files||[]).find(item=>item.type.startsWith('image/'));
+      if(file){event.preventDefault();void readPhoto(file);}
     });
-    $('fileList').addEventListener('click',handleListAction);
-    $('downloadAll').addEventListener('click',()=>void downloadAll());
-    $('clearAll').addEventListener('click',clearAll);
-    $('formatSelect').addEventListener('change',event=>{config.format=event.target.value;changeSettings();});
-    $('sizeSelect').addEventListener('change',event=>{config.size=Number(event.target.value);changeSettings();});
-    $('qualityRange').addEventListener('input',event=>{
-      config.quality=Number(event.target.value);
-      $('qualityText').textContent=config.quality+'%';
-      clearTimeout(runDelay);
-      runDelay=setTimeout(changeSettings,380);
+    $('moodList').addEventListener('click',event=>{
+      const button=event.target.closest('[data-mood]');
+      if(button)changeMood(button.dataset.mood);
     });
-    $('resetSettings').addEventListener('click',()=>{
-      config.format='auto';config.size=2560;config.quality=82;
-      syncSettings();changeSettings();toast('기본 설정으로 돌아왔어요.');
+    $('titleInput').addEventListener('input',()=>{state.titleEdited=true;updateText();});
+    $('noteInput').addEventListener('input',()=>{state.noteEdited=true;updateText();});
+    $('placeInput').addEventListener('input',updateText);
+    $('nextStyle').addEventListener('click',nextStyle);
+    $('suggestText').addEventListener('click',changeSuggestion);
+    $('shareBtn').addEventListener('click',()=>void share());
+    $('downloadBtn').addEventListener('click',()=>void download());
+    $('saveArchiveBtn').addEventListener('click',()=>void saveArchive());
+    $('openArchive').addEventListener('click',openArchive);
+    $('closeArchive').addEventListener('click',closeArchive);
+    $('archiveMask').addEventListener('click',closeArchive);
+    $('sceneGallery').addEventListener('click',event=>{
+      const btn=event.target.closest('[data-scene]');
+      if(btn)void chooseScene(btn.dataset.scene);
     });
-    $('closeCompare').addEventListener('click',closeCompare);
-    $('compareBackdrop').addEventListener('click',event=>{
-      if(event.target===$('compareBackdrop'))closeCompare();
+    $('archiveItems').addEventListener('click',event=>{
+      if(event.target.closest('[data-archive-new]')){closeArchive();$('photoInput').click();return;}
+      const restore=event.target.closest('[data-restore]');
+      if(restore){void restoreCard(archiveCards.find(card=>card.id===restore.dataset.restore));return;}
+      const remove=event.target.closest('[data-delete]');
+      if(remove)requestDelete(remove.dataset.delete);
     });
-    $('compareRange').addEventListener('input',comparePosition);
-    $('compareDownload').addEventListener('click',()=>{
-      const item=stored.find(row=>row.id===compareItemId);
-      if(item)singleDownload(item);
+    $('cancelConfirm').addEventListener('click',cancelDelete);
+    $('acceptConfirm').addEventListener('click',()=>void deleteCard());
+    $('newPostcard').addEventListener('click',()=>{
+      $('create').scrollIntoView({behavior:'smooth',block:'start'});
+      $('photoInput').click();
     });
     document.addEventListener('keydown',event=>{
-      if(event.key==='Escape'&&!$('compareBackdrop').hidden){event.preventDefault();closeCompare();}
-      if(event.key==='Tab'&&!$('compareBackdrop').hidden){
-        const controls=[$('closeCompare'),$('compareRange'),$('compareDownload')];
-        const at=controls.indexOf(document.activeElement);
-        if(at>=0) {
-          const next=at+(event.shiftKey?-1:1);
-          if(next<0||next>=controls.length){event.preventDefault();controls[(next+controls.length)%controls.length].focus();}
+      if(event.key==='Escape'){
+        if(!$('confirmLayer').hidden){event.preventDefault();cancelDelete();}
+        else if(!$('archiveOverlay').hidden){event.preventDefault();closeArchive();}
+        return;
+      }
+      if(event.key==='Tab'&&!$('confirmLayer').hidden){
+        const options=[$('cancelConfirm'),$('acceptConfirm')];
+        const idx=options.indexOf(document.activeElement);
+        if(idx!==-1){event.preventDefault();options[(idx+(event.shiftKey?-1:1)+options.length)%options.length].focus();}
+      }
+      if(event.key==='Tab'&&$('confirmLayer').hidden&&!$('archiveOverlay').hidden){
+        const options=[$('closeArchive'),...$$('#archiveItems button:not([disabled])')];
+        if(!options.length)return;
+        const idx=options.indexOf(document.activeElement);
+        if(idx!==-1&&((event.shiftKey&&idx===0)||(!event.shiftKey&&idx===options.length-1))){
+          event.preventDefault();options[event.shiftKey?options.length-1:0].focus();
         }
       }
     });
-    // Retain object URLs for back-forward cache restoration.
   }
-
-  function init() {
-    syncSettings();
-    bind();
-    render();
-    if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+  function init(){
+    setGallery();syncControls();bind();void render();void readArchive();
+    if('serviceWorker'in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
       window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
     }
   }
