@@ -1,5 +1,5 @@
 /* MAEA service worker — local shell + visited scenes (offline after caching). */
-const VERSION = 'maea-shell-1';
+const VERSION = 'maea-shell-2';
 const IMAGE_CACHE = 'maea-scenes-1';
 const CORE = ['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./favicon.svg'];
 self.addEventListener('install', event => {
@@ -7,12 +7,14 @@ self.addEventListener('install', event => {
 });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(
-    keys.filter(k => ![VERSION,IMAGE_CACHE].includes(k)).map(k => caches.delete(k))
+    keys.filter(k => k.startsWith('maea-') && ![VERSION,IMAGE_CACHE].includes(k)).map(k => caches.delete(k))
   )).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
+  // Keep the sibling image tool independent from the MAEA app shell.
+  if (url.href.startsWith(new URL('./elsewhere/', self.registration.scope).href)) return;
   if (url.origin === self.location.origin) {
     if (event.request.mode === 'navigate') {
       event.respondWith(fetch(event.request).then(response => {
