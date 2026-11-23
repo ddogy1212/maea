@@ -54,6 +54,7 @@
   let renderRevision=0;
   let lastRendered={revision:-1,hasImage:false};
   let cachedExport={revision:-1,promise:null};
+  let uploadRevision=0;
   let currentOrientation='landscape';
   let archiveCards=[];
   let dbPromise;
@@ -285,7 +286,7 @@
     try{
       paint(snapshot,img,$('postcardCanvas'));
       lastRendered={revision:token,hasImage:!!img};
-      cachedExport=img ? {revision:token,promise:canvasToBlob($('postcardCanvas'))} : {revision:token,promise:null};
+      cachedExport=img ? {revision:token,promise:canvasToBlob($('postcardCanvas')).catch(()=>null)} : {revision:token,promise:null};
       $('canvasWait').hidden=true;
       $('previewStatus').textContent=img
         ? (snapshot.source.kind==='sample'?'샘플 엽서 · 사진을 고르면 내 엽서가 돼요':'완성됐어요 · 바로 공유하거나 저장하세요')
@@ -302,6 +303,7 @@
 
   async function readPhoto(file) {
     if(!file) return;
+    const thisUpload=++uploadRevision;
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('JPG·PNG·WEBP 사진을 선택해 주세요.');return;}
     if(file.size>20*1024*1024){toast('사진은 20MB 이하만 사용할 수 있어요.');return;}
     if(file.size===0){toast('비어 있는 파일은 사용할 수 없어요.');return;}
@@ -319,6 +321,7 @@
       toast(error.message||'사진을 읽지 못했어요. 다른 파일을 골라 주세요.');
       return;
     }
+    if(thisUpload!==uploadRevision){imageCache.delete(url);URL.revokeObjectURL(url);return;}
     const previous=state.source;
     state.source=next;changed();
     if(previous.kind!=='sample'&&previous.url.startsWith('blob:')){
@@ -400,7 +403,9 @@
       const success=await render();
       if(!success)throw new Error('사진을 불러오지 못했어요. 내 사진을 선택한 뒤 다시 시도해 주세요.');
     }
-    return cachedExport.promise;
+    const blob=await cachedExport.promise;
+    if(!blob)throw new Error('엽서 이미지를 만들지 못했어요. 다시 시도해 주세요.');
+    return blob;
   }
   function exportName() {
     return 'elsewhere-'+(state.title||'my-memory').trim()
