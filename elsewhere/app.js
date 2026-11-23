@@ -53,6 +53,7 @@
   };
   let renderRevision=0;
   let lastRendered={revision:-1,hasImage:false};
+  let cachedExport={revision:-1,promise:null};
   let currentOrientation='landscape';
   let archiveCards=[];
   let dbPromise;
@@ -180,17 +181,18 @@
     paper(ctx,w,h);
     const portrait=h>w;
     const edge=w*.047;
-    const photoH=portrait?h*.735:h*.694;
+    const photoH=portrait?h*.698:h*.625;
     drawPhoto(ctx,img,edge,edge,w-edge*2,photoH);
     const under=edge+photoH;
     fillRule(ctx,edge+3,under+42,w-edge*2-6,'#dfd1c3',1);
     drawText(ctx,'ELSEWHERE / A POSTCARD TO KEEP',edge+3,under+27,w*.0099,'#928477',{kind:'mono'});
     drawText(ctx,formatDate(s.date),w-edge-3,under+27,w*.0100,'#928477',{kind:'mono',align:'right'});
-    const titleSize=portrait?75:82;
-    const titleY=under+(portrait?118:126);
+    const titleLength=Array.from(s.title||'').length;
+    const titleSize=portrait?(titleLength>28?44:titleLength>18?55:72):(titleLength>28?50:titleLength>18?63:76);
+    const titleY=under+120;
     const count=wrapText(ctx,s.title||'우리의 한 장면',edge+3,titleY,w-edge*2-20,titleSize,titleSize*.96,'#423a34',
       {kind:'korean',maxLines:2});
-    const noteY=Math.min(h-edge-58,titleY+count*titleSize*.96+18);
+    const noteY=titleY+count*titleSize*.96+24;
     wrapText(ctx,s.note,edge+4,noteY,w-edge*2-75,portrait?25:23,35,'#77655a',{kind:'korean',maxLines:2});
     drawText(ctx,(s.place||'A MOMENT TO REMEMBER').toUpperCase(),edge+4,h-edge*.47,w*.011,'#a16e5e',{kind:'mono',maxWidth:w*.72});
     drawText(ctx,'✳',w-edge-12,h-edge*.50,30,'#ad7b64',{align:'right'});
@@ -205,7 +207,8 @@
     const edge=w*.065;
     drawText(ctx,'ELSEWHERE. / THE MEMORY ISSUE',edge,edge+13,w*.015,'#fff2e5',{kind:'mono',shadow:true});
     drawText(ctx,formatDate(s.date),w-edge,edge+13,w*.013,'#fff2e5',{kind:'mono',align:'right',shadow:true});
-    const titleSize=w*.070;
+    const titleLength=Array.from(s.title||'').length;
+    const titleSize=w*(titleLength>25?.047:titleLength>15?.06:.070);
     const lines=wrappedLines(ctx,s.title||'우리의 한 장면',w-2*edge,titleSize,'korean',3);
     const start=h-edge-143-(lines.length-1)*titleSize*1.2;
     lines.forEach((line,i)=>drawText(ctx,line,edge,start+i*titleSize*1.2,titleSize,'#fff7e9',{kind:'korean',shadow:true}));
@@ -218,17 +221,18 @@
     paper(ctx,w,h,'#eee8da');
     const edge=w*.064,portrait=h>w;
     const top=edge+42;
-    const photoH=portrait?h*.675:h*.67;
+    const photoH=portrait?h*.625:h*.55;
     drawPhoto(ctx,img,edge,top,w-2*edge,photoH,'rgba(117,75,51,.05)');
     fillRule(ctx,edge,edge-3,w-2*edge,'#c7b5a5',1.5);
     drawText(ctx,'THE EVERYDAY POSTCARD ATELIER',edge,edge-19,w*.0108,'#877368',{kind:'mono'});
     const under=top+photoH;
     drawText(ctx,'—   WISH YOU WERE HERE   —',w/2,under+(portrait?73:63),w*.011,'#9c7f6d',{kind:'mono',align:'center'});
-    const titleSize=portrait?73:78;
+    const titleLength=Array.from(s.title||'').length;
+    const titleSize=portrait?(titleLength>24?46:titleLength>16?60:70):(titleLength>28?48:titleLength>18?61:76);
     const lines=wrappedLines(ctx,s.title||'그날의 우리',w-2*edge-10,titleSize,'korean',2);
-    const titleY=under+(portrait?165:151);
+    const titleY=under+(portrait?158:128);
     lines.forEach((line,i)=>drawText(ctx,line,w/2,titleY+i*titleSize*.95,titleSize,'#4a3b31',{kind:'korean',align:'center'}));
-    const messageY=Math.min(h-edge-85,titleY+lines.length*titleSize*1.01+5);
+    const messageY=titleY+lines.length*titleSize*.96+12;
     wrapText(ctx,s.note,w/2,messageY,w-2*edge-20,Math.max(19,w*.019),34,'#83766a',
       {kind:'korean',align:'center',maxLines:2});
     fillRule(ctx,edge,h-edge+10,w-2*edge,'#cfc0b0',1.5);
@@ -281,6 +285,7 @@
     try{
       paint(snapshot,img,$('postcardCanvas'));
       lastRendered={revision:token,hasImage:!!img};
+      cachedExport=img ? {revision:token,promise:canvasToBlob($('postcardCanvas'))} : {revision:token,promise:null};
       $('canvasWait').hidden=true;
       $('previewStatus').textContent=img
         ? (snapshot.source.kind==='sample'?'샘플 엽서 · 사진을 고르면 내 엽서가 돼요':'완성됐어요 · 바로 공유하거나 저장하세요')
@@ -290,6 +295,7 @@
       $('canvasWait').hidden=true;
       $('previewStatus').textContent='미리보기를 만들지 못했어요.';
       lastRendered={revision:token,hasImage:false};
+      cachedExport={revision:token,promise:null};
       return false;
     }
   }
@@ -390,9 +396,11 @@
     });
   }
   async function imageBlob() {
-    const success=await render();
-    if(!success)throw new Error('사진을 불러오지 못했어요. 내 사진을 선택한 뒤 다시 시도해 주세요.');
-    return canvasToBlob($('postcardCanvas'));
+    if(lastRendered.revision!==renderRevision || !lastRendered.hasImage || cachedExport.revision!==renderRevision || !cachedExport.promise){
+      const success=await render();
+      if(!success)throw new Error('사진을 불러오지 못했어요. 내 사진을 선택한 뒤 다시 시도해 주세요.');
+    }
+    return cachedExport.promise;
   }
   function exportName() {
     return 'elsewhere-'+(state.title||'my-memory').trim()
