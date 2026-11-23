@@ -108,7 +108,7 @@ async function main(){
   assert(ics.includes('DTEND;VALUE=DATE:20261204'),'exclusive all-day ICS end');
   assert(ics.includes('\r\n'),'CRLF line termination');
 
-  element('captureInput').value='내일 러시아어 단어 복습 30분\n국어 수행 11/27 22:00까지\n영어 단어 15분';
+  element('captureInput').value='내일 러시아어 단어 복습 30분\n모레 국어 수행 22:00까지\n영어 단어 15분';
   app.capture();
   assert.equal(app.data.tasks.length,3,'multiline task capture');
   assert.equal(app.data.tasks[0].category,'러시아어');
