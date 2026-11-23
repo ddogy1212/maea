@@ -107,6 +107,8 @@
   function detectCategory(text) {
     const prefix=String(text).match(/^\s*(?:\[|【)?\s*(국어|수학|영어|러시아어|과학|사회|학교|개인)(?:\]|】|:|\s|$)/);
     if(prefix)return prefix[1];
+    const anywhere=String(text).match(/(?:^|\s)(국어|수학|영어|러시아어|과학|사회)(?=\s|$)/);
+    if(anywhere)return anywhere[1];
     if(/동아리|선생님|수행평가|숙제|시험|과제/.test(text))return'학교';
     return'일반';
   }
@@ -283,7 +285,8 @@
     const originalLines=input.value.split(/\r?\n/).filter(s=>s.trim());
     const removeCount=selected.length;
     input.value=originalLines.slice(removeCount).join('\n');
-    view='today';$('searchInput').value='';
+    view=selected.some(item=>!item.dueDate||item.dueDate<=today())?'today':'upcoming';
+    $('searchInput').value='';
     render();
     input.focus();
     toast(selected.length+'개 할 일을 정리했어요. 이제 하나씩 시작해 볼까요?');
@@ -664,6 +667,12 @@
     $('showAll').addEventListener('click',()=>{view='all';render();});
     $('newTaskBtn').addEventListener('click',()=>openTaskEditor());
     $('taskForm').addEventListener('submit',saveTaskFromForm);
+    $('taskDate').addEventListener('change',e=>{
+      if(!$('taskId').value){
+        const due=e.target.value;
+        $('taskToday').checked=!due||due<=today();
+      }
+    });
     $('deleteTask').addEventListener('click',()=>void deleteTask());
     $('closeTaskModal').addEventListener('click',()=>closeModal('taskModal'));
     $('openBackup').addEventListener('click',openBackup);
