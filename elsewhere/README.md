@@ -1,58 +1,48 @@
-# PRESS. — Image Workshop
+# ELSEWHERE — The Everyday Postcard Atelier
 
-**Practical first, beautiful second.**
+**One photo, one feeling.** The original idea is back, but the difficult editing process is gone.
 
-PRESS replaces the previous postcard prototype in `maea/elsewhere/` with a functional image tool. The previous implementation is preserved in Git history. The original MAEA focus app in `maea/` is unchanged.
+ELSEWHERE is an independent creative app in `maea/elsewhere/`. The original MAEA focus app at the repository root is unchanged. The earlier PRESS utility and original complicated postcard design remain accessible through Git history.
 
-## Use in three seconds
+## The experience
 
-1. Open PRESS and tap **사진 선택하기** (or drag photos onto the drop zone).
-2. Wait for automatic conversion. No login, configuration, or start button.
-3. Download one image or tap **전체 ZIP 저장**.
+**Three simple steps:** choose a photo → the app generates a beautiful postcard immediately → save the PNG or share it directly.
 
-**Best for:** sending school photos, compressing screenshots, converting PNG to WEBP, resizing many photos at once, and making image attachments smaller.
+1. Open `/elsewhere/`. You'll see an actual photo-based demo postcard.
+2. Tap **내 사진으로 바로 만들기**, choose a JPG, PNG or WEBP image. Your postcard auto-renders; portrait photos use a portrait canvas and landscape photos use a landscape canvas.
+3. Tap **바로 공유하기** or **이미지 저장**. The share action uses the device's native Web Share API for image files when available, including supported messenger apps. If the browser cannot share files, it saves a PNG instead, which you can attach to KakaoTalk yourself.
+4. Optional: choose a mood (**추억, 여행, 축하, 응원**), tap **디자인 바꾸기**, or open **문구 직접 다듬기**. These advanced actions aren't required to export.
+5. Optional: tap **내 엽서함에 담기** to store this postcard locally. Later tap **내 엽서함 → 다시 열기** to continue editing, or delete a saved item.
 
-## Features
+### What makes it useful
 
-- Batch conversion of up to 30 JPG, PNG, WEBP images, 35 MB per input file.
-- Automatic output: JPG stays JPG, WEBP stays WEBP, PNG becomes WEBP for practical space savings.
-- Downsize images to 2560px max edge by default (1600px, 1080px, or original dimensions available).
-- Adjustable quality, optional JPG/WEBP/PNG choice in **압축 설정**.
-- Prevent bigger files in default mode when the source is already smaller and output is the same format/resolution.
-- Real original vs converted byte counts, savings indicators, preview comparison, per-image save and remove.
-- Locally generated ZIP for batch download; actual binary ZIP headers and CRC-32, no server.
-- Clipboard paste for image files (Ctrl/Cmd+V in compatible browsers).
-- Offline-capable shell after first load and PWA manifest.
-- All image processing is local to the browser. Source images aren't uploaded; canvas output strips the original file's ordinary metadata.
-- No saved files or accounts: the active batch is held in browser memory. Save downloads before leaving.
+- Share a custom greeting, photo keepsake, memory, anniversary message or trip photo as a single image.
+- One photo becomes a 1600×1200 (landscape) or 1200×1600 (portrait) PNG with real typography and photographic layout.
+- Three professionally art-directed layouts: **Editorial**, **Cinema**, and **Afterglow**.
+- Prewritten mood-specific messages and a one-tap suggestion switch, plus manual overrides.
+- An optional 40-card private archive backed by IndexedDB, without sign-up.
+- Share from supported mobile browsers with native file sharing.
+- Full-featured mobile layout: prominent upload, immediate preview, sticky save/share controls above Android safe areas, and optional details below.
 
-## Run
+### Privacy and limitations
 
-With Python installed, from the repository root:
+- Your photos are processed in the browser with Canvas. No photo server or account is used. The chosen photos, generated PNGs and local saved entries stay on your device unless **you choose to share** them.
+- The app's sample scenery comes from Unsplash and therefore requires the internet on first load. The sample photos may depend on cross-origin image permissions for PNG export; if an external sample cannot be loaded, use your own photo.
+- The photo archive is local to that device/browser and can disappear when the browser's stored data is cleared. Always download important finished postcards.
+- JPEG, PNG and WEBP input only, up to 20 MB per file and up to 65 megapixels. Animated GIF is not supported.
+- Large images can use significant phone memory; support varies by browser.
+- Exports include visible text and artwork, not the original photo EXIF metadata.
+- Share targets (including KakaoTalk) depend on what apps and capabilities the phone/browser exposes; **no guaranteed KakaoTalk integration** is claimed.
+- If the phone has no Web Share support, the app downloads PNG so you can manually send it.
+
+## Run locally
 
 ```sh
 python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080/elsewhere/`.
+Open `http://localhost:8080/elsewhere/`. To access the deployed app, GitHub Pages must be enabled. Its intended URL is `https://ddogy1212.github.io/maea/elsewhere/`.
 
-If the GitHub Pages workflow is deployed successfully, the web app is at:
-`https://ddogy1212.github.io/maea/elsewhere/`.
+Vanilla HTML/CSS/JS, Canvas 2D, IndexedDB, Web Share, Service Worker. No build system.
 
-## Important limitations
-
-- JPG exports replace transparent backgrounds with white. For transparency, use WEBP or PNG.
-- Some browsers may not support WebP encoding and may fall back to PNG. The app detects the real result MIME type.
-- PNG export is lossless; the quality percentage does not affect PNG compression.
-- Animated formats (including GIF) and video are not supported.
-- Very large/high-megapixel images may fail or exhaust memory, especially on older phones; the app limits images to 65MP.
-- Browser downloads may be blocked by device permissions or storage limits. ZIP creation requires sufficient available RAM.
-- Lossy compression can remove fine detail. Users should inspect results before deleting irreplaceable original files.
-
-## Technical notes
-
-Static HTML, CSS, and plain JavaScript without build dependencies. Canvas exports, object URLs, file uploads, source comparison, ZIP (stored method, UTF-8 names, CRC-32 and central directory), service worker. Photographic editorial hero uses a fixed Unsplash picture ([license](https://unsplash.com/license)); an internet connection is required for that decorative image and optional web fonts, not for local image conversion.
-
-Background inspiration: [MDN canvas toBlob](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob), [MDN createImageBitmap](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap), [PKWARE ZIP format](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT).
-
-The public UI is deliberately one-task-at-a-time: upload → process → download.
+Visual imagery licensed via [Unsplash](https://unsplash.com/license). Reference APIs: [MDN Canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API), [Web Share](https://developer.mozilla.org/en-US/docs/Web/API/Web_Share_API), [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
