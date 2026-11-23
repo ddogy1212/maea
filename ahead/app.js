@@ -173,12 +173,25 @@
     };
   }
 
+  function normalizeSession(input){
+    if(!input||typeof input!=='object')return null;
+    const timestamp=new Date(input.at||'');
+    const minutes=Math.round(Number(input.minutes));
+    if(!Number.isFinite(timestamp.getTime())||!Number.isFinite(minutes)||minutes<1||minutes>240)return null;
+    return{
+      id:String(input.id||uid()).slice(0,100),
+      at:timestamp.toISOString(),
+      minutes,
+      taskId:typeof input.taskId==='string'?input.taskId.slice(0,100):null
+    };
+  }
+
   function loadData() {
     try{
       const parsed=JSON.parse(localStorage.getItem(KEY)||'null');
       if(!parsed||!Array.isArray(parsed.tasks))return emptyData();
       const cleaned=parsed.tasks.slice(0,MAX_TASKS).map(normalizeTask).filter(Boolean);
-      const sessions=Array.isArray(parsed.sessions)?parsed.sessions.slice(-600).filter(s=>s&&typeof s==='object'):[];
+      const sessions=Array.isArray(parsed.sessions)?parsed.sessions.slice(-600).map(normalizeSession).filter(Boolean):[];
       const rawFocus=parsed.focus||{};
       const total=[1500,2700,3600].includes(rawFocus.totalSec)?rawFocus.totalSec:1500;
       let remaining=Math.max(0,Math.min(total,Number(rawFocus.remainingSec)||total));
@@ -279,10 +292,11 @@
     const selected=parsed.entries.slice(0,Math.max(0,space));
     if(!selected.length){toast('할 일이 500개예요. 완료 항목을 정리해 주세요.');return;}
     const now=new Date().toISOString();
+    const previousLength=data.tasks.length;
     data.tasks.push(...selected.map(({inferredDate,...entry})=>normalizeTask({
       ...entry,id:uid(),done:false,createdAt:now,updatedAt:now
     })));
-    if(!persist())return;
+    if(!persist()){data.tasks.length=previousLength;return;}
     const originalLines=input.value.split(/\r?\n/).filter(s=>s.trim());
     const removeCount=selected.length;
     input.value=originalLines.slice(removeCount).join('\n');
@@ -572,7 +586,7 @@
   function exportJson(){
     const json=JSON.stringify({
       app:'AHEAD',version:1,exportedAt:new Date().toISOString(),
-      tasks:data.tasks,sessions:data.sessions
+      tasks:data.tasks,sessions:data.sessions,focusSettings:{totalSec:data.focus.totalSec}
     },null,2);
     saveBlob(new Blob([json],{type:'application/json;charset=utf-8'}),
       'ahead-backup-'+today()+'.json');
@@ -639,15 +653,36 @@
     const candidate=parsed.tasks.slice(0,MAX_TASKS).map(normalizeTask).filter(Boolean);
     const ids=new Set(data.tasks.map(task=>task.id));
     const fresh=candidate.filter(task=>!ids.has(task.id)).slice(0,Math.max(0,MAX_TASKS-data.tasks.length));
-    if(!fresh.length){toast('추가할 새 할 일이 없어요.');return;}
-    const yes=await confirm(fresh.length+'개 할 일을 복원할까요?',
-      '기존 할 일은 유지하고, 백업에 있는 새 할 일만 추가합니다.','추가하기');
+    const sessionIds=new Set(data.sessions.map(session=>session.id));
+    const importedSessions=Array.isArray(parsed.sessions)
+      ?parsed.sessions.slice(-600).map(normalizeSession).filter(Boolean).filter(s=>!sessionIds.has(s.id))
+      :[];
+    const hasFocus=[1500,2700,3600].includes(parsed.focusSettings?.totalSec);
+    if(!fresh.length&&!importedSessions.length&&!hasFocus){
+      toast('새로 복원할 할 일이나 집중 기록이 없어요.');return;
+    }
+    const yes=await confirm('기록을 복원할까요?',
+      '새 할 일 '+fresh.length+'개와 집중 기록 '+importedSessions.length+'개를 기존 데이터에 추가합니다.','복원하기');
     if(!yes)return;
+    const previousLength=data.tasks.length;
+    const previousSessions=[...data.sessions];
+    const previousFocus={...data.focus};
     data.tasks.push(...fresh);
-    if(!persist())return;
+    data.sessions.push(...importedSessions);
+    if(hasFocus&&!data.focus.running){
+      data.focus.totalSec=parsed.focusSettings.totalSec;
+      data.focus.remainingSec=parsed.focusSettings.totalSec;
+    }
+    if(!persist()){
+      data.tasks.length=previousLength;
+      data.sessions=previousSessions;
+      Object.assign(data.focus,previousFocus);
+      return;
+    }
     closeModal('backupModal');render();
-    toast(fresh.length+'개 할 일을 복원했어요.');
+    toast('할 일 '+fresh.length+'개, 집중 기록 '+importedSessions.length+'개를 복원했어요.');
   }
+
   function openBackup(){
     modalReturnFocus=document.activeElement;
     $('backupModal').hidden=false;
