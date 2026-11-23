@@ -212,7 +212,8 @@
         b.dataset.duration = choices[i];
         b.textContent = choices[i] + '분';
       }
-      b.classList.toggle('active', Number(b.dataset.duration) === state.durations[state.mode]);
+      const isPreset = choices.includes(state.durations[state.mode]);
+      b.classList.toggle('active', b.dataset.duration === 'custom' ? !isPreset : Number(b.dataset.duration) === state.durations[state.mode]);
     });
     el('todayMinutes').textContent = 'TODAY · ' + dayMinutes() + ' MIN';
   }
@@ -314,16 +315,13 @@
       toast('시간을 바꾸려면 먼저 타이머를 멈춰 주세요.');
       return;
     }
-    let mins = Number(value);
     if (value === 'custom') {
-      const answer = prompt('몇 분으로 설정할까요? (1~180분)', String(state.durations[state.mode]));
-      if (answer === null) return;
-      if (!/^\d+$/.test(answer.trim())) {
-        toast('1~180 사이의 숫자를 입력해 주세요.');
-        return;
-      }
-      mins = Number(answer);
+      el('customMinutes').value = state.durations[state.mode];
+      el('customModal').hidden = false;
+      setTimeout(() => el('customMinutes').focus(), 50);
+      return;
     }
+    const mins = Number(value);
     if (!Number.isInteger(mins) || mins < 1 || mins > 180) {
       toast('1~180분으로 설정할 수 있어요.');
       return;
@@ -331,7 +329,7 @@
     if (state.timer.remaining !== state.timer.total && !confirm('진행 중인 시간을 초기화할까요?')) return;
     state.durations[state.mode] = mins;
     resetTimer();
-    if (value === 'custom') toast(mins + '분으로 설정했어요.');
+    if (![25,45,60,5,10,15].includes(mins)) toast(mins + '분으로 설정했어요.');
   }
 
   function renderTasks() {
@@ -699,6 +697,16 @@
         b.setAttribute('aria-pressed', String(on));
       });
     }));
+    el('customClose').addEventListener('click', () => { el('customModal').hidden = true; });
+    el('customForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const value = el('customMinutes').value;
+      if (!/^\\d+$/.test(value.trim())) { toast('분 단위 숫자를 입력해 주세요.'); return; }
+      const num = Number(value);
+      if (num < 1 || num > 180) { toast('1~180분으로 설정할 수 있어요.'); return; }
+      el('customModal').hidden = true;
+      chooseDuration(num);
+    });
     el('finishSave').addEventListener('click', finishReflection);
     el('finishClose').addEventListener('click', dismissFinish);
     el('helpLink').addEventListener('click', openShortcuts);
@@ -709,13 +717,14 @@
       if (event.key === 'Escape') {
         if (!el('finishModal').hidden) { dismissFinish();return; }
         if (!el('shortcutModal').hidden) { closeShortcuts();return; }
+        if (!el('customModal').hidden) { el('customModal').hidden = true;return; }
         if (currentPanel) {closePanel();return;}
         if (document.body.classList.contains('focus-only')) toggleFocusView();
         return;
       }
       const tag = document.activeElement?.tagName;
       const editing = ['INPUT','TEXTAREA','SELECT'].includes(tag) || document.activeElement?.isContentEditable;
-      if (editing || !el('finishModal').hidden || !el('shortcutModal').hidden || currentPanel) return;
+      if (editing || !el('finishModal').hidden || !el('shortcutModal').hidden || !el('customModal').hidden || currentPanel) return;
       if (event.key === '?' || (event.shiftKey && event.key === '/')) {
         event.preventDefault();openShortcuts();return;
       }
