@@ -300,3 +300,7 @@ svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.6;stroke
   .studio-form-side{padding-inline:17px}.studio-form-side h2{font-size:50px}.image-picker{gap:4px}.upload-photo>span:last-child{font-size:7px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}.ticker-track{animation:none}}
+
+/* Uploaded artwork state */
+.upload-photo.selected-photo{background:#e8e0d5;border-color:#a66f56;color:#8b5946}
+.upload-photo.selected-photo>span:first-child{color:#9d6248}
