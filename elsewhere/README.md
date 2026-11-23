@@ -1,41 +1,58 @@
-# ELSEWHERE — The Postcard Atelier
+# PRESS. — Image Workshop
 
-An editorial, photo-driven postcard studio, built as an independent second experience inside `maea/elsewhere/`. The original MAEA app at `../` is untouched.
+**Practical first, beautiful second.**
 
-## What works
+PRESS replaces the previous postcard prototype in `maea/elsewhere/` with a functional image tool. The previous implementation is preserved in Git history. The original MAEA focus app in `maea/` is unchanged.
 
-- **Six photo collections** with large editorial landing imagery.
-- **Live postcard editor:** three real 1600px canvas templates — Editorial, Cinema and Heritage — in landscape or portrait format.
-- **Front and back:** image-led front, handwritten-letter-inspired reverse, with title, place, date and a 240-character message.
-- **Personal photographs:** local JPG / PNG / WEBP up to 20MB, resized to a maximum 2400px edge for storage.
-- **Photographic framing:** 100–165% zoom and high quality image smoothing.
-- **Download:** actual rendered canvas as full-resolution PNG, both faces. Mobile sharing uses the Web Share API when available and falls back to PNG download.
-- **Private archive:** postcards saved with preview thumbnails, edit, search, favorite and delete functions, backed by IndexedDB with localStorage fallback. No account, tracking or servers.
-- **Mobile-friendly:** a dedicated bottom navigation on the public site, editor/preview tabs inside the postcard studio, touch-friendly controls and safe-area spacing.
-- **PWA:** a separate service worker scoped to `/elsewhere/`; the UI works offline after being loaded online once, and previously viewed landscape images may be cached. Google Fonts and never-loaded images need internet.
-- **Keyboard:** `C` to open a new postcard when not typing, `Ctrl/Cmd+S` to save in the editor, `Esc` to close.
+## Use in three seconds
 
-## Preview
+1. Open PRESS and tap **사진 선택하기** (or drag photos onto the drop zone).
+2. Wait for automatic conversion. No login, configuration, or start button.
+3. Download one image or tap **전체 ZIP 저장**.
 
-Run `python3 -m http.server 8080` from the repository root and open `http://localhost:8080/elsewhere/`. Static HTML, CSS and JavaScript — no build or dependency installation.
+**Best for:** sending school photos, compressing screenshots, converting PNG to WEBP, resizing many photos at once, and making image attachments smaller.
 
-If GitHub Pages is successfully enabled for the repository, visit `https://ddogy1212.github.io/maea/elsewhere/`. The existing root Pages workflow already publishes the entire repository; this directory does **not** need another workflow.
+## Features
 
-## Notes
+- Batch conversion of up to 30 JPG, PNG, WEBP images, 35 MB per input file.
+- Automatic output: JPG stays JPG, WEBP stays WEBP, PNG becomes WEBP for practical space savings.
+- Downsize images to 2560px max edge by default (1600px, 1080px, or original dimensions available).
+- Adjustable quality, optional JPG/WEBP/PNG choice in **압축 설정**.
+- Prevent bigger files in default mode when the source is already smaller and output is the same format/resolution.
+- Real original vs converted byte counts, savings indicators, preview comparison, per-image save and remove.
+- Locally generated ZIP for batch download; actual binary ZIP headers and CRC-32, no server.
+- Clipboard paste for image files (Ctrl/Cmd+V in compatible browsers).
+- Offline-capable shell after first load and PWA manifest.
+- All image processing is local to the browser. Source images aren't uploaded; canvas output strips the original file's ordinary metadata.
+- No saved files or accounts: the active batch is held in browser memory. Save downloads before leaving.
 
-Photo source: fixed images served by [Unsplash](https://unsplash.com/) under its [License](https://unsplash.com/license), for mood and illustration only. Location labels are creative scene titles; a photo is not evidence of the exact named place.
+## Run
 
-Generated poster/photo exports depend on the browser permitting canvas CORS access to remote images. If a remote image does not export, upload a photo you own via the studio instead. Text-only/blank-image fallbacks remain available for failed sources.
+With Python installed, from the repository root:
 
-All postcard records are **local to the current browser/device**, not synced to other devices. Browser storage can be erased by the user, privacy settings, or device cleanups. Download the rendered PNG to keep a durable copy. The export file does not contain hidden geo-coordinates or EXIF copied from uploaded source photos.
+```sh
+python3 -m http.server 8080
+```
 
-Design principles: art-directed photography rather than CSS primitive illustrations; responsive layouts; transparent privacy; no false user stats or placeholder saved records.
+Open `http://localhost:8080/elsewhere/`.
 
-## Sources
+If the GitHub Pages workflow is deployed successfully, the web app is at:
+`https://ddogy1212.github.io/maea/elsewhere/`.
 
-- [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
-- [MDN IndexedDB API](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
-- [MDN Web Share API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Share_API)
-- [Unsplash License](https://unsplash.com/license)
+## Important limitations
 
-Built with care as a completely different companion to MAEA.
+- JPG exports replace transparent backgrounds with white. For transparency, use WEBP or PNG.
+- Some browsers may not support WebP encoding and may fall back to PNG. The app detects the real result MIME type.
+- PNG export is lossless; the quality percentage does not affect PNG compression.
+- Animated formats (including GIF) and video are not supported.
+- Very large/high-megapixel images may fail or exhaust memory, especially on older phones; the app limits images to 65MP.
+- Browser downloads may be blocked by device permissions or storage limits. ZIP creation requires sufficient available RAM.
+- Lossy compression can remove fine detail. Users should inspect results before deleting irreplaceable original files.
+
+## Technical notes
+
+Static HTML, CSS, and plain JavaScript without build dependencies. Canvas exports, object URLs, file uploads, source comparison, ZIP (stored method, UTF-8 names, CRC-32 and central directory), service worker. Photographic editorial hero uses a fixed Unsplash picture ([license](https://unsplash.com/license)); an internet connection is required for that decorative image and optional web fonts, not for local image conversion.
+
+Background inspiration: [MDN canvas toBlob](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob), [MDN createImageBitmap](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap), [PKWARE ZIP format](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT).
+
+The public UI is deliberately one-task-at-a-time: upload → process → download.
