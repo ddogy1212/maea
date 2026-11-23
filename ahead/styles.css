@@ -216,6 +216,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 }
 @media(max-width:690px){
  html{scroll-padding-top:15px}
+ .intro-image{display:none} /* Mobile: prioritize the capture input rather than decoration. */
+ .intro{padding-bottom:18px}
  .topbar{height:65px;padding:0 18px}.brand{font-size:37px}.today-display{display:none}
  .header-button{padding:11px;font-size:10px;gap:6px}.header-button svg{width:16px;height:16px}
  .main{padding:0 17px}
