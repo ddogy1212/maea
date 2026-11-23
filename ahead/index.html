@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f4f2eb">
+  <meta name="description" content="AHEAD — 할 일을 모으고, 마감을 놓치지 않고, 지금 할 일에 집중하는 가벼운 개인 실행 대시보드.">
+  <meta property="og:title" content="AHEAD — make room for what matters">
+  <meta property="og:description" content="공지 붙여넣기부터 할 일 정리, 집중 타이머, 달력 내보내기까지.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+  <title>AHEAD — Your Everyday Workbench</title>
+</head>
+<body>
+<a class="skip" href="#capture">빠른 입력으로 건너뛰기</a>
+<div class="app">
+ <header class="topbar">
+   <a class="brand" href="./" aria-label="AHEAD 홈">ahead<span>.</span></a>
+   <div class="top-center">AN EVERYDAY WORKBENCH <span class="tiny-star">✳</span> MAKE ROOM FOR WHAT MATTERS</div>
+   <div class="top-right"><span class="today-display" id="headerDate">TODAY</span><button type="button" class="header-button" id="openBackup"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 17v4h16v-4"/></svg><span>백업·내보내기</span></button></div>
+ </header>
+ <main class="main">
+   <section class="intro" aria-labelledby="mainTitle">
+     <div class="intro-text">
+       <span class="eyebrow"><i>✳</i> YOUR DAY, A LITTLE CLEARER <span>VOL. 001 / AHEAD</span></span>
+       <h1 id="mainTitle">오늘 할 일,<br><em>이제 한눈에.</em></h1>
+       <p class="intro-description">머릿속에 흩어진 할 일부터 마감이 있는 과제까지.<br>모아두고, 정리하고, 하나씩 끝내세요.</p>
+     </div>
+     <div class="intro-image">
+       <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1100&q=84" alt="채광 좋은 차분한 작업 공간" fetchpriority="high">
+       <span class="image-caption">NO. 01 / THE ART OF GETTING THINGS DONE</span>
+       <span class="image-quote">Less noise.<br><em>More doing.</em></span>
+     </div>
+   </section>
+
+   <section class="capture-section" id="capture" aria-labelledby="captureHeading">
+     <div class="capture-side">
+       <span class="section-label">01 / THE INBOX</span>
+       <h2 id="captureHeading">일단 <em>여기에.</em></h2>
+       <p>할 일 한 줄도, 카톡 공지 여러 줄도 괜찮아요.<br>날짜와 시간을 찾아 목록에 정리해 드려요.</p>
+       <div class="capture-tips"><span>예: 국어 수행 11/27 22:00까지</span><span>예: 내일 러시아어 단어 외우기 30분</span></div>
+     </div>
+     <div class="capture-box">
+       <label class="sr-only" for="captureInput">할 일 또는 여러 줄의 공지 입력</label>
+       <textarea id="captureInput" rows="4" maxlength="6000" spellcheck="false" placeholder="할 일을 적거나 공지 내용을 붙여넣으세요...
+국어 수행 11/27 22:00까지
+내일 러시아어 단어 복습 30분"></textarea>
+       <div id="parsePreview" class="parse-preview" hidden aria-live="polite"></div>
+       <div class="capture-footer">
+         <span class="capture-hint"><span class="hint-dot"></span><span id="captureHint">서버 전송 없이 이 브라우저에서 정리해요.</span></span>
+         <button type="button" class="capture-add" id="addTasks" disabled><span id="addLabel">할 일 추가하기</span><span aria-hidden="true">↗</span></button>
+       </div>
+     </div>
+   </section>
+
+   <section class="metrics" aria-label="할 일 현황">
+     <div class="metric"><span>오늘 남은 할 일</span><strong id="metricToday">0</strong><small>TODAY'S LINEUP <span>↗</span></small></div>
+     <div class="metric"><span>7일 안의 마감</span><strong id="metricWeek">0</strong><small>THE NEXT SEVEN DAYS <span>↗</span></small></div>
+     <div class="metric"><span>완료한 할 일</span><strong id="metricDone">0</strong><small>ONE THING AT A TIME <span>✳</span></small></div>
+     <div class="metric metric-mood"><span>오늘의 한마디</span><p id="metricQuote">작은 일을 끝내는 것도 큰 진전.</p><small>THAT COUNTS, TOO.</small></div>
+   </section>
+
+   <section class="board" aria-labelledby="boardTitle">
+     <div class="board-left">
+       <div class="board-head">
+         <div><span class="section-label">02 / YOUR WORKLIST</span><h2 id="boardTitle">Your work, <em>in order.</em></h2></div>
+         <div class="board-tools"><button id="newTaskBtn" type="button" class="text-button">＋ 직접 추가</button></div>
+       </div>
+       <div class="tabs" role="group" aria-label="할 일 보기">
+         <button type="button" data-view="today" class="tab active" aria-pressed="true">오늘 <span id="tabToday">0</span></button>
+         <button type="button" data-view="upcoming" class="tab" aria-pressed="false">예정 <span id="tabUpcoming">0</span></button>
+         <button type="button" data-view="all" class="tab" aria-pressed="false">전체 <span id="tabAll">0</span></button>
+         <button type="button" data-view="done" class="tab" aria-pressed="false">완료 <span id="tabDone">0</span></button>
+       </div>
+       <div class="list-toolbar">
+         <label class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><input id="searchInput" type="search" placeholder="할 일 검색" aria-label="할 일 검색"></label>
+         <span id="listStatus" class="list-status">READY FOR TODAY</span>
+       </div>
+       <div id="taskList" class="task-list" aria-live="polite"></div>
+       <div class="board-bottom"><span>완료한 일을 누르면 언제든 다시 되돌릴 수 있어요.</span><button id="showAll" type="button">전체 목록 보기 ↗</button></div>
+     </div>
+     <aside class="board-right" aria-labelledby="focusHeading">
+       <div class="focus-panel">
+         <div class="focus-topline"><span><span class="focus-led"></span> FOCUS ROOM</span><span>03 / DO THE WORK</span></div>
+         <h2 id="focusHeading">한 번에 <em>하나씩.</em></h2>
+         <p class="focus-lead">지금 할 일 하나를 골라 집중하세요.</p>
+         <div class="focus-target"><span>NOW WORKING ON</span><strong id="focusTarget">선택한 할 일이 없어요</strong><button type="button" id="changeFocusTask">할 일 고르기 ↗</button></div>
+         <div class="timer-display" aria-label="집중 시간"><span id="timerMin">25</span><span class="timer-colon">:</span><span id="timerSec">00</span></div>
+         <div class="timer-presets" role="group" aria-label="집중 시간 설정"><button class="preset active" data-minutes="25" aria-pressed="true">25분</button><button class="preset" data-minutes="45" aria-pressed="false">45분</button><button class="preset" data-minutes="60" aria-pressed="false">60분</button></div>
+         <div class="timer-controls">
+           <button type="button" id="timerStart" class="timer-start">집중 시작 <span>↗</span></button>
+           <button type="button" id="timerReset" class="timer-reset" aria-label="타이머 초기화" title="초기화"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 3v6h6"/></svg></button>
+         </div>
+         <div class="timer-note" id="timerNote" role="status">처음엔 25분만 해도 충분해요.</div>
+       </div>
+       <div class="week-panel">
+         <div class="week-head"><span>THE LITTLE PROGRESS REPORT</span><span>↗</span></div>
+         <h3>이번 주의 <em>발자국.</em></h3>
+         <div class="week-chart" id="weekChart" aria-label="최근 7일간 완료한 할 일 수"></div>
+         <div class="week-foot"><span>최근 7일 완료</span><strong id="weekDone">0개</strong></div>
+       </div>
+     </aside>
+   </section>
+
+   <section class="bottom-feature">
+     <div class="bottom-feature-text"><span class="section-label">04 / OWN YOUR TIME</span><h2>Write it down.<br><em>Get it done.</em></h2><p>작은 계획이 쌓이면, 어느새 많은 일을 해낸 하루가 됩니다.</p></div>
+     <div class="feature-photo"><img src="https://images.unsplash.com/photo-1456324504439-367cee3b3c32?auto=format&fit=crop&w=1100&q=82" alt="노트와 책이 펼쳐진 책상" loading="lazy"><span>TAKE THE NEXT STEP / TODAY</span></div>
+   </section>
+ </main>
+ <footer class="footer"><span class="footer-brand">ahead<span>.</span></span><span>EVERYDAY PROGRESS, WITHOUT THE NOISE.</span><span>PRIVATE ON THIS DEVICE · 2026</span></footer>
+</div>
+
+<div class="modal-wrap" id="taskModal" hidden>
+  <div class="modal-shade" data-close-modal></div>
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-top"><div><span class="section-label">EDIT YOUR NEXT STEP</span><h2 id="modalTitle">할 일 <em>추가하기.</em></h2></div><button id="closeTaskModal" type="button" class="modal-close" aria-label="닫기">✕</button></div>
+    <form id="taskForm">
+      <input id="taskId" type="hidden">
+      <label for="taskTitle">할 일 제목 <span>필수</span></label>
+      <input id="taskTitle" type="text" maxlength="140" required placeholder="예: 러시아어 문법 복습" autocomplete="off">
+      <div class="modal-grid">
+        <div><label for="taskDate">마감 날짜</label><input type="date" id="taskDate"></div>
+        <div><label for="taskTime">마감 시각 <span>선택</span></label><input type="time" id="taskTime"></div>
+        <div><label for="taskEstimate">예상 소요</label><select id="taskEstimate"><option value="15">15분</option><option value="25" selected>25분</option><option value="45">45분</option><option value="60">60분</option><option value="90">90분</option><option value="120">2시간</option></select></div>
+        <div><label for="taskCategory">분류</label><select id="taskCategory"><option value="일반">일반</option><option value="학교">학교</option><option value="국어">국어</option><option value="수학">수학</option><option value="영어">영어</option><option value="러시아어">러시아어</option><option value="과학">과학</option><option value="사회">사회</option><option value="개인">개인</option></select></div>
+      </div>
+      <div class="option-row">
+        <label class="check-label"><input type="checkbox" id="taskToday" checked><span>오늘 할 일로 지정</span></label>
+        <label class="check-label"><input type="checkbox" id="taskPriority"><span>중요한 일로 표시 ★</span></label>
+      </div>
+      <div class="modal-bottom"><button type="button" id="deleteTask" class="delete-task" hidden>삭제</button><button type="submit" class="save-task">저장하고 돌아가기 ↗</button></div>
+    </form>
+  </section>
+</div>
+
+<div class="modal-wrap" id="backupModal" hidden>
+ <div class="modal-shade" data-close-modal></div>
+ <section class="modal backup-dialog" role="dialog" aria-modal="true" aria-labelledby="backupHeading">
+  <div class="modal-top"><div><span class="section-label">YOUR DATA, YOURS TO KEEP</span><h2 id="backupHeading">백업과 <em>내보내기.</em></h2></div><button type="button" id="closeBackupModal" class="modal-close" aria-label="닫기">✕</button></div>
+  <p class="backup-intro">할 일은 이 브라우저에만 저장돼요. 기기를 바꾸거나 브라우저 데이터를 지우기 전에 백업 파일을 받아두세요.</p>
+  <div class="backup-options">
+    <button type="button" id="exportJson"><strong>전체 데이터 백업</strong><span>JSON 파일 · 나중에 복원 가능</span><i>↗</i></button>
+    <button type="button" id="exportIcs"><strong>마감 일정 달력으로 보내기</strong><span>ICS 파일 · 캘린더 앱에서 열기</span><i>↗</i></button>
+    <button type="button" id="importTrigger"><strong>이전 백업 복원하기</strong><span>JSON 파일에서 할 일 불러오기</span><i>↗</i></button>
+    <input id="importInput" type="file" accept="application/json,.json" class="sr-only">
+  </div>
+  <span class="backup-foot">백업 복원 시에는 기존 데이터에 추가하며, 같은 ID의 항목은 중복으로 만들지 않아요.</span>
+ </section>
+</div>
+<div class="confirm-wrap" id="confirmModal" hidden>
+  <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmDetail">
+    <span class="section-label">A QUICK CHECK</span><h2 id="confirmTitle">할 일을 삭제할까요?</h2><p id="confirmDetail">삭제한 항목은 다시 복구하기 어려워요.</p>
+    <div><button type="button" id="confirmCancel">취소</button><button type="button" id="confirmYes">삭제하기</button></div>
+  </div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
