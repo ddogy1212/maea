@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111917">
+  <meta name="description" content="MAEA — 조용한 공간, 나만의 시간. 풍경과 앰비언트 사운드, 타이머, 기록을 하나의 몰입 경험으로.">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="MAEA — Make a little room for yourself.">
+  <meta property="og:description" content="Focus, gently. 여섯 풍경과 함께하는 작은 몰입 공간.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <title>MAEA — a place for the present</title>
+</head>
+<body>
+  <a href="#main" class="skip-link">본문으로 건너뛰기</a>
+  <div id="backdrop" aria-hidden="true">
+    <div class="photo-layer photo-a" id="photoA"></div>
+    <div class="photo-layer photo-b" id="photoB"></div>
+    <div class="atmosphere"></div><div class="grain"></div>
+  </div>
+  <div class="app-shell" id="app">
+    <aside class="rail" aria-label="탐색">
+      <a href="#main" class="brand" aria-label="MAEA 홈">
+        <span class="brand-glyph">m<span>.</span></span>
+        <span class="brand-name">MAEA</span>
+      </a>
+      <div class="rail-center">
+        <button class="rail-btn active" type="button" id="navHome" aria-label="홈" title="홈">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-7 9 7M5.5 10v10h13V10M9.5 20v-7h5v7"/></svg><span class="rail-tooltip">홈</span>
+        </button>
+        <button class="rail-btn" type="button" data-panel="tasks" aria-label="할 일" title="할 일">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="m7.5 10 2 2 3.5-4M14.5 11h3M7.5 16h9"/></svg><span class="rail-tooltip">할 일</span>
+        </button>
+        <button class="rail-btn" type="button" data-panel="journal" aria-label="기록" title="기록">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5h12a3 3 0 0 1 3 3V20H7a3 3 0 0 1-3-3zM4 17a3 3 0 0 1 3-3h12M8.5 8.5h7M8.5 11.5h5"/></svg><span class="rail-tooltip">기록</span>
+        </button>
+        <span class="rail-rule"></span>
+        <button class="rail-btn" type="button" data-panel="settings" aria-label="설정" title="설정">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/><circle cx="9" cy="7" r="2.1"/><circle cx="15" cy="17" r="2.1"/></svg><span class="rail-tooltip">설정</span>
+        </button>
+      </div>
+      <div class="rail-bottom"><span class="rail-vertical">STAY A LITTLE WHILE</span><span class="rail-index">© 26</span></div>
+    </aside>
+    <main class="main" id="main">
+      <header class="topbar">
+        <div class="top-left"><span class="tiny-diamond">✳</span><span>AN ANTIDOTE TO THE NOISE</span></div>
+        <div class="top-right"><span class="live-dot"></span><span id="topToday">MON, NOV 23</span><span class="top-separator">/</span><time id="localClock">09:00</time></div>
+      </header>
+      <section class="hero-grid" aria-labelledby="sceneTitle">
+        <div class="story">
+          <div class="story-eyebrow"><span class="eyebrow-line"></span><span id="sceneCounter">NO. 01 — THE QUIET COLLECTION</span></div>
+          <h1 id="sceneTitle">The world can<br> <em>wait a little.</em></h1>
+          <p id="sceneDescription" class="story-copy">조금 천천히 가도 괜찮은 시간.<br>당신의 생각이 다시 맑아질 자리를 만들었어요.</p>
+          <div class="story-actions">
+            <button class="text-action" type="button" id="storyStart"><span class="action-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 9 6-9 6z" fill="currentColor" stroke="none"/></svg></span><span>이곳에서 시작하기</span><span class="tiny-arrow">↗</span></button>
+            <span class="story-divider"></span><span class="story-index" id="storyKind">01 / 06&nbsp; • &nbsp;FOREST</span>
+          </div>
+        </div>
+        <div class="timer-wrap" id="timerWrap">
+          <article class="timer-card" aria-label="집중 타이머">
+            <div class="card-head"><span><span class="card-pulse"></span> A MOMENT FOR YOU</span><button type="button" class="icon-button" id="focusView" aria-label="집중 화면 전환" title="집중 화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg></button></div>
+            <div class="timer-switch" role="group" aria-label="타이머 모드"><button class="mode-btn selected" type="button" data-mode="focus" aria-pressed="true">집중</button><button class="mode-btn" type="button" data-mode="break" aria-pressed="false">쉬어가기</button></div>
+            <div class="clock-area">
+              <svg class="progress-ring" viewBox="0 0 260 260" aria-hidden="true"><circle class="ring-back" cx="130" cy="130" r="114"/><circle class="ring-front" id="progressCircle" cx="130" cy="130" r="114" stroke-dasharray="716.283" stroke-dashoffset="0"/></svg>
+              <div class="clock-center"><span class="clock-label" id="clockLabel">TIME TO FOCUS</span><strong id="timerDisplay" class="timer-digits" role="timer" aria-live="off">25:00</strong><span id="timerSubtitle" class="clock-subtitle">지금 이 순간에만 집중해요.</span></div>
+            </div>
+            <div class="duration-row" role="group" aria-label="시간 선택"><button type="button" class="duration active" data-duration="25">25분</button><button type="button" class="duration" data-duration="45">45분</button><button type="button" class="duration" data-duration="60">60분</button><button type="button" class="duration" data-duration="custom">직접 설정</button></div>
+            <div class="timer-actions"><button class="play-btn" type="button" id="timerPlay"><svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="currentColor" stroke="none"/></svg><span id="playLabel">시작하기</span></button><button class="reset-btn" type="button" id="timerReset" aria-label="타이머 처음부터" title="타이머 초기화"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8L4 9M4 4v5h5"/></svg></button></div>
+            <button class="intent-row" type="button" data-panel="tasks"><span class="intent-plus">＋</span><span id="intentLabel">이번 시간에 할 일 정하기</span><span class="intent-chevron">↗</span></button>
+          </article>
+          <div class="session-caption"><span>✦</span><span>LET THE LITTLE THINGS BE ENOUGH.</span><span class="caption-rule"></span><span id="todayMinutes">TODAY · 0 MIN</span></div>
+        </div>
+      </section>
+      <section class="explore" aria-label="풍경 선택">
+        <div class="explore-heading"><div><span class="section-kicker">A CHANGE OF SCENERY</span><h2>Somewhere else, <em>for a moment.</em></h2></div><div class="explore-right"><span>YOUR SPACE, YOUR PACE</span><span id="sceneFraction">01 — 06</span></div></div>
+        <div class="scene-gallery" id="sceneGallery" role="group" aria-label="공간 선택"></div>
+      </section>
+      <footer class="footer">
+        <div class="sound-toolbar" aria-label="공간 사운드">
+          <div class="sound-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg><span>AMBIENCE</span></div>
+          <span class="sound-divider"></span>
+          <button class="sound-choice" type="button" data-sound="rain" aria-pressed="false">빗소리</button>
+          <button class="sound-choice" type="button" data-sound="ocean" aria-pressed="false">파도</button>
+          <button class="sound-choice" type="button" data-sound="wind" aria-pressed="false">바람</button>
+          <span class="sound-divider mobile-hide"></span>
+          <button class="sound-mute" type="button" id="soundMute" aria-label="소리 켜기 또는 끄기" title="소리 끄기/켜기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zM17 9c1.5 1.5 1.5 4.5 0 6"/></svg></button>
+          <label class="volume-label" aria-label="음량"><input type="range" id="soundVolume" min="0" max="100" value="45"></label>
+        </div>
+        <div class="footer-note"><span>조용한 시간을 위한 작은 도구</span><button type="button" id="helpLink">단축키 <kbd>?</kbd></button></div>
+      </footer>
+    </main>
+  </div>
+  <div class="mobile-nav" aria-label="모바일 탐색"><button type="button" data-mobile-home class="mobile-link active"><svg viewBox="0 0 24 24"><path d="m4 11 8-6 8 6v9H4zM9 20v-7h6v7"/></svg><span>공간</span></button><button type="button" data-panel="tasks" class="mobile-link"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 10l2 2 3-3M14 14h4"/></svg><span>할 일</span></button><button type="button" data-panel="journal" class="mobile-link"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H7a2 2 0 0 1-2-2zM9 9h6M9 13h6"/></svg><span>기록</span></button><button type="button" data-panel="settings" class="mobile-link"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg><span>설정</span></button></div>
+  <div class="scrim" id="scrim" hidden></div>
+  <aside id="sidePanel" class="side-panel" aria-label="작업 패널" aria-hidden="true">
+    <div class="panel-top"><span class="section-kicker">MAEA / YOUR OWN SPACE</span><button type="button" id="closePanel" class="panel-close" aria-label="닫기">✕</button></div>
+    <div class="panel-page" data-page="tasks"><div class="panel-title-block"><h2>Small steps, <em>big day.</em></h2><p>머릿속에 쌓인 일을 여기 내려놓아 봐요. 한 번에 하나씩.</p></div><div class="panel-section-label"><span>TO-DO / YOUR LIST</span><span id="taskCount">0 LEFT</span></div><form id="taskForm" class="task-form"><label class="sr-only" for="taskInput">새로운 할 일</label><input id="taskInput" type="text" autocomplete="off" maxlength="90" placeholder="지금 해야 할 일을 적어주세요"><button type="submit" aria-label="추가">＋</button></form><div id="taskList" class="task-list"></div><button class="subtle-link" id="clearTasks" type="button">완료한 항목 정리하기 ↗</button><div class="panel-footnote">항목을 선택하면 다음 집중 시간의 목표가 돼요.</div></div>
+    <div class="panel-page" data-page="journal"><div class="panel-title-block"><h2>Proof of <em>being here.</em></h2><p>작은 노력도 기록해 두면 생각보다 커 보여요.</p></div><div class="stats-grid"><div><span>오늘의 집중</span><strong id="statToday">0<small>min</small></strong></div><div><span>완료한 세션</span><strong id="statSessions">0<small>times</small></strong></div></div><div class="panel-section-label"><span>THE LAST 7 DAYS</span><span>FOCUS MINUTES</span></div><div id="weekBars" class="week-bars" aria-label="지난 7일 기록"></div><div class="panel-section-label history-label"><span>RECENT MOMENTS</span><button class="subtle-link" id="exportHistory" type="button">기록 내보내기 ↗</button></div><div id="historyList" class="history-list"></div><div class="panel-footnote">기록은 이 기기의 브라우저에만 저장됩니다.</div></div>
+    <div class="panel-page" data-page="settings"><div class="panel-title-block"><h2>Make it <em>yours.</em></h2><p>마음에 드는 방식으로 시간을 꾸려보세요.</p></div><div class="panel-section-label">PREFERENCES</div><label class="setting-row"><span><strong>타이머 완료 알림</strong><small>브라우저에서 알림을 허용해야 해요.</small></span><input type="checkbox" id="notifyToggle" role="switch"></label><label class="setting-row"><span><strong>부드러운 화면 전환</strong><small>동작 줄이기 설정이 켜져 있으면 최소화해요.</small></span><input type="checkbox" id="motionToggle" role="switch" checked></label><div class="panel-section-label setting-space">YOUR DATA</div><div class="setting-row"><span><strong>기록 내보내기</strong><small>완료 세션을 JSON 파일로 보관해요.</small></span><button class="settings-action" type="button" id="exportSettings">내보내기 ↗</button></div><div class="setting-row"><span><strong>내 데이터 지우기</strong><small>할 일과 세션 기록을 삭제해요.</small></span><button class="settings-action danger" type="button" id="eraseData">초기화</button></div><div class="panel-section-label setting-space">ABOUT</div><p class="about-copy">MAEA는 화면을 줄이는 대신, 그 너머에 잠시 머무를 공간을 만듭니다. 사운드는 기기에서 합성되어 재생되며, 외부 계정이나 서버 로그인이 필요하지 않습니다.</p><button class="subtle-link" type="button" id="showShortcuts">단축키 보기 ↗</button><div class="panel-footnote">MAEA · made for the moments in between.</div></div>
+  </aside>
+  <div class="modal-backdrop" id="finishModal" hidden>
+    <section class="finish-card" role="dialog" aria-modal="true" aria-labelledby="finishTitle"><span class="finish-stars">✦ &nbsp; ✳ &nbsp; ✦</span><span class="section-kicker">A MOMENT, WELL SPENT</span><h2 id="finishTitle">You showed <em>up.</em></h2><p id="finishBody">작은 집중 하나가 쌓였어요. 어떤 기분으로 마쳤나요?</p><div class="mood-row" role="group" aria-label="기분 선택"><button type="button" data-mood="맑음" aria-pressed="false">☀️ <span>맑음</span></button><button type="button" data-mood="평온" aria-pressed="false">🍃 <span>평온</span></button><button type="button" data-mood="뿌듯" aria-pressed="false">✨ <span>뿌듯</span></button><button type="button" data-mood="지침" aria-pressed="false">🌙 <span>지침</span></button></div><label class="sr-only" for="reflectionInput">짧은 메모</label><textarea id="reflectionInput" maxlength="240" placeholder="기억하고 싶은 생각 한 줄 (선택)" rows="3"></textarea><button class="play-btn finish-save" id="finishSave" type="button">기록 저장하기 <span>↗</span></button><button class="finish-later" type="button" id="finishClose">그냥 닫기</button></section>
+  </div>
+  <div class="modal-backdrop" id="shortcutModal" hidden><section class="shortcut-card" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle"><div class="shortcut-heading"><h2 id="shortcutTitle">A few <em>shortcuts.</em></h2><button type="button" id="closeShortcuts" class="panel-close" aria-label="닫기">✕</button></div><div><span>타이머 시작 / 일시정지</span><kbd>Space</kbd></div><div><span>풍경 전환</span><kbd>1 — 6</kbd></div><div><span>패널 / 창 닫기</span><kbd>Esc</kbd></div><div><span>단축키 보기</span><kbd>?</kbd></div></section></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
