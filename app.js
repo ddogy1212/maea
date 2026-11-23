@@ -700,10 +700,11 @@
     el('customClose').addEventListener('click', () => { el('customModal').hidden = true; });
     el('customForm').addEventListener('submit', event => {
       event.preventDefault();
-      const value = el('customMinutes').value;
-      if (!/^\\d+$/.test(value.trim())) { toast('분 단위 숫자를 입력해 주세요.'); return; }
-      const num = Number(value);
-      if (num < 1 || num > 180) { toast('1~180분으로 설정할 수 있어요.'); return; }
+      const num = Number(el('customMinutes').value);
+      if (!Number.isInteger(num) || num < 1 || num > 180) {
+        toast('1~180 사이의 정수로 입력해 주세요.');
+        return;
+      }
       el('customModal').hidden = true;
       chooseDuration(num);
     });
