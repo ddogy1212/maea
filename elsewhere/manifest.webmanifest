@@ -1,0 +1,25 @@
+{
+  "name": "ELSEWHERE — The Postcard Atelier",
+  "short_name": "ELSEWHERE",
+  "description": "기억하고 싶은 순간을 디지털 엽서로 만드는 아틀리에",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f2ec",
+  "theme_color": "#f5f2ec",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "photography",
+    "lifestyle",
+    "creative"
+  ]
+}
