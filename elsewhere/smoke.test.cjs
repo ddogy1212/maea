@@ -1,100 +1,182 @@
-/* PRESS smoke test — Node 20+, no dependencies or remote services. */
+/* ELSEWHERE postcard smoke test — Node 20+, no dependencies. */
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const root=__dirname;
-const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const css=fs.readFileSync(path.join(root,'styles.css'),'utf8');
-const code=fs.readFileSync(path.join(root,'app.js'),'utf8');
-const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
+const directory=__dirname;
+const html=fs.readFileSync(path.join(directory,'index.html'),'utf8');
+const css=fs.readFileSync(path.join(directory,'styles.css'),'utf8');
+const js=fs.readFileSync(path.join(directory,'app.js'),'utf8');
+const sw=fs.readFileSync(path.join(directory,'sw.js'),'utf8');
+const manifest=JSON.parse(fs.readFileSync(path.join(directory,'manifest.webmanifest'),'utf8'));
 
-async function main(){
-  new vm.Script(code,{filename:'app.js'});
+async function run(){
+  new vm.Script(js,{filename:'app.js'});
   new vm.Script(sw,{filename:'sw.js'});
-  assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length,'CSS braces balanced');
-  assert.equal(manifest.name.startsWith('PRESS'),true);
+  assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length,'balanced CSS');
+  assert.equal(manifest.name.includes('ELSEWHERE'),true);
   const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
-  const references=new Set([...code.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]));
-  for(const id of references)assert(ids.has(id),'missing referenced UI element '+id);
+  const required=new Set([...js.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]));
+  for(const id of required)assert(ids.has(id),'missing DOM element: '+id);
 
   const nodes=new Map();
-  const classList={add(){},remove(){},toggle(){}};
+  const classList={add(){},remove(){},toggle(){},contains(){return false}};
   const element=id=>{
     if(!nodes.has(id))nodes.set(id,{
-      id,hidden:id==='compareBackdrop'||id==='resultsSection',
-      textContent:'',innerHTML:'',value:'',style:{},disabled:false,classList,
-      addEventListener(){},scrollIntoView(){},focus(){},removeAttribute(){},setAttribute(){},
-      contains(){return false}
+      id,classList,value:'',innerHTML:'',textContent:'',style:{},
+      hidden:id==='archiveOverlay'||id==='confirmLayer'||id==='canvasWait',
+      disabled:false,
+      addEventListener(){},setAttribute(){},scrollIntoView(){},focus(){},
+      contains(){return false},removeAttribute(){},click(){}
     });
     return nodes.get(id);
   };
-  const context2d={fillStyle:'',imageSmoothingEnabled:false,imageSmoothingQuality:'',
-    fillRect(){},drawImage(){}};
-  let objectIndex=0,decoded=0;
-  const doc={
-    getElementById:element,querySelectorAll(){return[];},
-    addEventListener(){},body:{appendChild(){}},activeElement:{tagName:'BODY'},
-    createElement(tag){
-      if(tag==='canvas')return {
-        width:1,height:1,getContext(){return context2d;},
-        toBlob(callback,mime){
-          const length=Math.round(this.width*this.height/7);
-          callback(new Blob([Buffer.alloc(length,15)],{type:mime}));
-        }
-      };
-      return {click(){},remove(){},href:'',download:''};
+
+  const counters={paint:0,image:0,download:0,photoBlob:0};
+  const ctx={
+    font:'',fillStyle:'',imageSmoothingEnabled:false,imageSmoothingQuality:'',
+    save(){},restore(){},beginPath(){},rect(){},clip(){},translate(){},rotate(){},
+    fillRect(x,y,w,h){assert([x,y,w,h].every(Number.isFinite),'finite rectangle');counters.paint++;},
+    drawImage(){counters.image++;},
+    createLinearGradient(){return{addColorStop(){}};},
+    measureText(value){
+      return{width:[...String(value)].reduce((sum,c)=>sum+(c.charCodeAt(0)>128?52:28),0)};
+    },
+    fillText(value,x,y,width){
+      assert(Number.isFinite(x)&&Number.isFinite(y),'finite text position');
+      if(arguments.length===4)assert(Number.isFinite(width),'finite maxWidth');
+      counters.paint++;
     }
   };
-  const windowMock={createImageBitmap:true,matchMedia(){return{matches:true}},addEventListener(){}};
-  const urlMock={createObjectURL(){return'blob:press-'+(++objectIndex)},revokeObjectURL(){}};
-  const loadBitmap=async()=>{decoded++;return{width:1600,height:1200,close(){}}};
-  const instrument=code.replace(/\n  init\(\);\n\}\)\(\);\s*$/,
-    '\n  init();globalThis.__TEST__={stored,acceptFiles,makeZip,clearAll,changeSettings,config};\n})();');
-  assert.notEqual(instrument,code,'instrumented smoke-test hook');
+  const createCanvas=()=>({
+    width:1600,height:1200,getContext(){return ctx;},
+    toBlob(cb,type){counters.photoBlob++;cb(new Blob([Buffer.alloc(3000,7)],{type:type||'image/png'}));},
+    toDataURL(){return 'data:image/jpeg;base64,'+Buffer.from('preview').toString('base64');}
+  });
+  const canvas=createCanvas();
+  const documentMock={
+    getElementById(id){return id==='postcardCanvas'?canvas:element(id);},
+    querySelector(){return element('preview-stage');},
+    querySelectorAll(){return[];},
+    activeElement:element('focus'),body:element('body'),
+    fonts:{ready:Promise.resolve()},
+    addEventListener(){},
+    createElement(tag){
+      if(tag==='canvas')return createCanvas();
+      if(tag==='a')return{href:'',download:'',click(){counters.download++;},remove(){}};
+      return element('created-'+tag);
+    }
+  };
+  documentMock.body.appendChild=()=>{};
+
+  const windowMock={addEventListener(){},matchMedia(){return{matches:false}}};
+  const activeUrls=new Set();
+  let counter=0;
+  const urlMock={
+    createObjectURL(){const url='blob:test-'+(++counter);activeUrls.add(url);return url;},
+    revokeObjectURL(url){activeUrls.delete(url);}
+  };
+  class ImageMock {
+    constructor(){this.naturalWidth=1600;this.naturalHeight=1200;}
+    set src(url){
+      this._src=url;
+      if(url.startsWith('blob:')){this.naturalWidth=1080;this.naturalHeight=1920;}
+      Promise.resolve().then(()=>this.onload?.());
+    }
+    get src(){return this._src;}
+  }
+  const storage=new Map();
+  const mockDb={
+    objectStoreNames:{contains(){return storage.size>=0;}},
+    createObjectStore(){},
+    transaction(){
+      const tx={oncomplete:null,onabort:null,onerror:null,objectStore(){
+        return {
+          put(data){return request(()=>{storage.set(data.id,data);return data.id;});},
+          getAll(){return request(()=>[...storage.values()]);},
+          delete(id){return request(()=>storage.delete(id));}
+        };
+      }};
+      function request(fn){
+        const req={result:null,onsuccess:null,onerror:null};
+        queueMicrotask(()=>{
+          try{req.result=fn();req.onsuccess?.();tx.oncomplete?.();}
+          catch(e){req.onerror?.();tx.onerror?.();}
+        });
+        return req;
+      }
+      return tx;
+    }
+  };
+  const indexedDBMock={open(){
+    const request={result:mockDb,onupgradeneeded:null,onsuccess:null,onerror:null,onblocked:null};
+    queueMicrotask(()=>request.onsuccess?.());
+    return request;
+  }};
+  const instrumentation=js.replace(/\n  init\(\);\n\}\)\(\);\s*$/,
+    '\n  init();globalThis.__TEST__={state,render,readPhoto,changeMood,changeSuggestion,nextStyle,paint,saveArchive,restoreCard,readArchive,archiveCards:()=>archiveCards,requestDelete,deleteCard,download,share};\n})();');
+  assert.notEqual(instrumentation,js,'test hook inserted');
   const sandbox={
-    document:doc,window:windowMock,URL:urlMock,Blob,TextEncoder,DataView,Uint8Array,
-    navigator:{},location:{protocol:'file:',hostname:''},setTimeout,clearTimeout,
-    createImageBitmap:loadBitmap,
-    crypto:{randomUUID:()=>String(Math.random())}
+    document:documentMock,window:windowMock,Image:ImageMock,URL:urlMock,
+    navigator:{},location:{protocol:'file:',hostname:''},indexedDB:indexedDBMock,
+    Blob,File,crypto:{randomUUID:()=>'id-'+(++counter)},
+    setTimeout,clearTimeout,queueMicrotask,console
   };
   sandbox.globalThis=sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(instrument,sandbox,{filename:'app.js'});
+  vm.runInContext(instrumentation,sandbox,{filename:'app.js'});
   const app=sandbox.__TEST__;
   assert(app,'app initialized');
 
-  const one=new Blob([Buffer.alloc(850000,7)],{type:'image/jpeg'});one.name='학교 사진.jpg';
-  const two=new Blob([Buffer.alloc(720000,3)],{type:'image/jpeg'});two.name='학교 사진.jpg';
-  await app.acceptFiles([one,two]);
-  for(let count=0;count<300;count++){
-    if(app.stored.every(x=>x.status==='ready'))break;
-    await new Promise(resolve=>setTimeout(resolve,10));
+  assert.equal(await app.render(),true,'demo loads');
+  assert.equal(canvas.width,1600);
+  assert.equal(canvas.height,1200);
+  assert(counters.paint>100,'actual graphic composition');
+  for(const style of ['editorial','cinema','polaroid']){
+    for(const portrait of [false,true]){
+      app.paint({
+        ...app.state,style,
+        title:'아주 오래 기억하고 싶은 특별한 순간이었어',
+        note:'오래도록 남겨 두고 싶은 우리의 작은 이야기.'
+      },{
+        naturalWidth:portrait?1200:1900,
+        naturalHeight:portrait?2000:1000
+      },canvas);
+      assert.equal(canvas.width,portrait?1200:1600);
+      assert.equal(canvas.height,portrait?1600:1200);
+    }
   }
-  assert.equal(app.stored.length,2,'accept multiple images');
-  assert(app.stored.every(x=>x.status==='ready'),'all images process');
-  assert(app.stored.every(x=>x.result.size>0),'nonempty outputs');
-  assert(decoded>=2,'decode each source');
-  assert(html.includes('전체 ZIP 저장'));
-  assert(element('fileList').innerHTML.includes('저장 ↓'),'file results visible');
-  const zip=await app.makeZip(app.stored);
-  const bytes=Buffer.from(await zip.arrayBuffer());
-  const eocd=bytes.length-22;
-  assert.equal(bytes.readUInt32LE(0),0x04034b50,'local ZIP header');
-  assert.equal(bytes.readUInt32LE(eocd),0x06054b50,'ZIP EOCD');
-  assert.equal(bytes.readUInt16LE(eocd+10),2,'two ZIP records');
-  const directoryOffset=bytes.readUInt32LE(eocd+16);
-  assert.equal(bytes.readUInt32LE(directoryOffset),0x02014b50,'central directory signature');
-  const recordSize=46+bytes.readUInt16LE(directoryOffset+28);
-  assert.equal(bytes.readUInt32LE(directoryOffset+recordSize),0x02014b50,'second directory record');
-  assert.equal(bytes.readUInt16LE(6),0x0800,'UTF-8 filename flag');
-  const firstName=bytes.subarray(30,30+bytes.readUInt16LE(26)).toString('utf8');
-  assert(firstName.includes('학교 사진-press.jpg'),'Korean filename encoded in UTF-8');
-  app.clearAll();
-  assert.equal(app.stored.length,0,'clear list');
-  assert.equal(element('resultsSection').hidden,true,'hide empty results');
-  console.log('PASS: syntax, DOM refs, batch encode, savings UI, ZIP headers, UTF-8 names, cleanup.');
+  app.changeMood('celebrate');
+  assert.equal(app.state.mood,'celebrate');
+  app.changeSuggestion();assert.equal(app.state.variation,1);
+  app.nextStyle();assert.equal(app.state.style,'cinema');
+
+  const upload=new Blob([Buffer.alloc(1200,31)],{type:'image/jpeg'});
+  upload.name='나의 여름.jpg';
+  await app.readPhoto(upload);
+  assert.equal(app.state.source.kind,'upload');
+  assert.equal(app.state.source.blob,upload);
+  await app.render();
+  assert.equal(canvas.width,1200,'portrait upload maps to portrait output');
+  await app.saveArchive();
+  assert.equal(storage.size,1,'archive stores source photo locally');
+  assert.equal(element('archiveCount').textContent,'1');
+  const saved=[...storage.values()][0];
+  assert(saved.imageBlob instanceof Blob,'persist editable photo');
+  assert(saved.preview.startsWith('data:image/jpeg;'),'persist thumbnail');
+
+  await app.restoreCard(saved);
+  assert.equal(app.state.archiveId,saved.id);
+  assert.equal(app.state.title,saved.title);
+  assert.equal(await app.render(),true);
+  await app.download();
+  await app.share(); // no Web Share API; should download an image instead.
+  assert.equal(counters.download,2,'download and share fallback');
+  app.requestDelete(saved.id);
+  await app.deleteCard();
+  assert.equal(storage.size,0,'delete archive entry');
+
+  console.log('PASS: syntax, DOM, 6 postcard layouts, moods, portrait upload, local archive, PNG download and sharing fallback.');
 }
-main().catch(error=>{console.error(error);process.exitCode=1;});
+run().catch(error=>{console.error(error);process.exitCode=1;});
