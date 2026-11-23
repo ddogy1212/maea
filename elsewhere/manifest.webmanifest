@@ -1,13 +1,13 @@
 {
-  "name": "PRESS. — Image Workshop",
-  "short_name": "PRESS.",
-  "description": "사진을 브라우저에서 바로 압축·변환하고 여러 장을 ZIP으로 저장하는 도구.",
+  "name": "ELSEWHERE — The Everyday Postcard Atelier",
+  "short_name": "ELSEWHERE",
+  "description": "사진 한 장으로 마음을 담은 엽서를 만들고 공유하세요.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f4ee",
-  "theme_color": "#f5f4ee",
+  "background_color": "#f5f1e9",
+  "theme_color": "#f5f1e9",
   "lang": "ko",
   "icons": [
     {
@@ -18,8 +18,8 @@
     }
   ],
   "categories": [
-    "utilities",
-    "productivity",
-    "photography"
+    "photography",
+    "lifestyle",
+    "entertainment"
   ]
 }
