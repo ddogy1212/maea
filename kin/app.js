@@ -49,6 +49,7 @@
   function safeWebsite(value) {
     const s=trim(value,180);
     if(!s)return '';
+    if(/^[a-z][a-z0-9+.-]*:/i.test(s)&&!startsProtocol(s))return '';
     const url=startsProtocol(s)?s:'https://'+s;
     try {
       const parsed=new URL(url);
@@ -176,6 +177,7 @@
     $('shareCard').disabled=!data.name;
     $('downloadVcf').disabled=!data.name;
     $('copyLink').disabled=!data.name;
+    $('saveQr').disabled=!data.name;
     $('writeCardNfc').disabled=!data.name;
     $('linkSummary').textContent=data.name?'받는 사람이 링크를 열면 연락처를 저장할 수 있어요.':'이름을 적으면 QR 공유 링크가 만들어져요.';
     renderQr(cardShareLink);
@@ -225,6 +227,19 @@
     }
   }
 
+  async function downloadQr() {
+    if(!cardShareLink){toast('먼저 명함에 이름을 입력해 주세요.');return;}
+    const canvas=$('qrCode').querySelector('canvas');
+    if(!canvas || !canvas.toBlob){toast('QR 모듈을 불러오지 못했어요. 링크 공유를 이용해 주세요.');return;}
+    try{
+      const blob=await new Promise((resolve,reject)=>{
+        canvas.toBlob(result=>result?resolve(result):reject(new Error('QR export')),'image/png');
+      });
+      const name=(data.name||'contact').replace(/[^a-zA-Z0-9가-힣_-]/g,'-').slice(0,35);
+      saveBlob(blob,'kin-qr-'+name+'.png');
+      toast('QR 코드를 PNG로 저장했어요.');
+    }catch{toast('QR 이미지 저장에 실패했어요. 링크를 복사해 주세요.');}
+  }
   function vcard(profile) {
     const p=normalizeProfile(profile);
     const vEscape=value=>String(value||'').replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/;/g,'\\;').replace(/,/g,'\\,');
@@ -496,6 +511,7 @@
       sendShare(cardShareLink,'KIN / '+data.name);
     });
     $('downloadVcf').addEventListener('click',()=>downloadContact(data));
+    $('saveQr').addEventListener('click',()=>void downloadQr());
     $('copyLink').addEventListener('click',async()=>{
       const success=await copyText(cardShareLink);
       toast(success?'명함 링크를 복사했어요.':'복사에 실패했어요. HTTPS 환경인지 확인해 주세요.');
